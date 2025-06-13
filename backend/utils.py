@@ -20,44 +20,35 @@ from data_processing import *
 from decision_tree import *
 from plotting import *
 
-
-class ExpandDimsLayer(Layer):
-    def __init__(self, axis, **kwargs):
-        super(ExpandDimsLayer, self).__init__(**kwargs)
-        self.axis = axis
-
-    def call(self, inputs):
-        return tf.expand_dims(inputs, axis=self.axis)
-
-def generate_data(num_cases, model_name, n_gram):
+def generate_data(num_cases, model_name, prefix_length):
     process_model = build_process_model(model_name)
     folder_name = model_name
     categorical_attributes, numerical_attributes = get_attributes(folder_name)
-    X, y, class_names, feature_names, feature_indices = generate_processed_data(process_model, categorical_attributes=categorical_attributes, numerical_attributes=numerical_attributes, num_cases=num_cases, n_gram=n_gram, folder_name=folder_name)
+    X, y, class_names, feature_names, feature_indices = generate_processed_data(process_model, categorical_attributes=categorical_attributes, numerical_attributes=numerical_attributes, num_cases=num_cases, prefix_length=prefix_length, folder_name=folder_name)
     return X, y, class_names, feature_names, feature_indices
 
 # define neural network architecture
-def build_nn(input_dim, output_dim, hidden_units=[512, 256, 128, 64]):
+def build_nn(input_dim, output_dim, hidden_units=[512, 256, 128, 64], learning_rate=1e-3):
     model = Sequential()
     model.add(Input(shape=(input_dim,)))
     for units in hidden_units:
         model.add(Dense(units, activation='relu'))
     model.add(Dense(output_dim, activation='softmax'))
     
-    model.compile(optimizer=Adam(), 
+    model.compile(optimizer=Adam(learning_rate=learning_rate), 
                   loss='categorical_crossentropy', 
                   metrics=['accuracy'])
     return model
 
 # train and save neural network
-def train_nn(X_train, y_train, folder_name=None, model_name="nn.keras"):
+def train_nn(X_train, y_train, folder_name=None, hidden_units=[512, 256, 128, 64], model_name="nn.keras", epochs=10, batch_size=32, learning_rate=1e-3):
     input_dim = X_train.shape[1]  # Number of input features (attributes + events)
     output_dim = y_train.shape[1]  # Number of possible events (classes)
     print("training neural network:")
     print(f"input dimension: {input_dim}")
     print(f"output dimension: {output_dim}")
-    model = build_nn(input_dim, output_dim)
-    model.fit(X_train, y_train, epochs=10, batch_size=32)
+    model = build_nn(input_dim, output_dim, hidden_units=hidden_units, learning_rate=learning_rate)
+    model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size)
     print("--------------------------------------------------------------------------------------------------")
     if folder_name:
         save_nn(model, folder_name, model_name)
@@ -72,12 +63,12 @@ def train_sklearn_dt(X_train, y_train, ccp_alpha=0.001, max_depth=None, min_samp
     print("--------------------------------------------------------------------------------------------------")
     return dt
 
-def train_dt(X_train, y_train, folder_name=None, model_name=None, feature_names=None, feature_indices=None, class_names=None):
-    dt = train_sklearn_dt(X_train, y_train)
+def train_dt(X_train, y_train, ccp_alpha=0.001, max_depth=None, min_samples_split=2, min_samples_leaf=1, folder_name=None, model_name=None, feature_names=None, feature_indices=None, class_names=None):
+    dt = train_sklearn_dt(X_train, y_train, ccp_alpha=ccp_alpha, max_depth=max_depth, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf)
     dt = sklearn_to_custom_tree(dt, feature_names=feature_names, class_names=class_names, feature_indices=feature_indices)
     num_nodes = dt.count_nodes()
     dt.id_counter = num_nodes
-    if model_name:
+    if model_name and folder_name:
         save_dt(dt, folder_name, model_name)
     print("--------------------------------------------------------------------------------------------------")
     return dt
@@ -86,7 +77,7 @@ def train_custom_dt(X_train, y_train, folder_name=None, model_name=None, feature
     print("training decision tree:")
     dt = DecisionTreeClassifier(class_names=class_names, feature_names=feature_names, feature_indices=feature_indices)
     dt.fit(X_train, y_train)
-    if model_name:
+    if model_name and folder_name:
         save_dt(dt, folder_name, model_name)
     print("--------------------------------------------------------------------------------------------------")
     return dt
@@ -475,14 +466,14 @@ def run_demo():
     #mine_bpm("hospital_billing.xes", "hb")
     #ablation_experiment("bias", "ablation_bias", np.arange(0.6, 0.8, 0.1), ["time_delta", "age"], ["time_delta", "age"], num_cases=1000, folds=3)
 
-def k_fold_evaluation(df, critical_decisions, categorical_attributes, numerical_attributes, base_attributes, parity_keys, folds=5, n_gram=3, modify_mode="retrain", finetuning_mode=None, folder_name=None):
+def k_fold_evaluation(df, critical_decisions, categorical_attributes, numerical_attributes, base_attributes, parity_keys, folds=5, prefix_length=3, modify_mode="retrain", finetuning_mode=None, folder_name=None):
     results = []
     class_names = sorted(df["activity"].unique().tolist() + ["<PAD>"])
     attribute_pools = create_attribute_pools(df, categorical_attributes)
-    feature_names = create_feature_names(class_names, attribute_pools, numerical_attributes, n_gram)
-    feature_indices = create_feature_indices(class_names, attribute_pools, numerical_attributes, n_gram)
+    feature_names = create_feature_names(class_names, attribute_pools, numerical_attributes, prefix_length)
+    feature_indices = create_feature_indices(class_names, attribute_pools, numerical_attributes, prefix_length)
     
-    folds = k_fold_cross_validation(df, categorical_attributes, numerical_attributes, critical_decisions, n_gram=3, k=folds)
+    folds = k_fold_cross_validation(df, categorical_attributes, numerical_attributes, critical_decisions, prefix_length=3, k=folds)
     
     for i, (X_train, y_train, X_test, y_test, numerical_thresholds) in tqdm(enumerate(folds), desc="evaluating model:"):
         X_train_base = remove_attribute_features(X_train, feature_indices, base_attributes)
@@ -650,7 +641,7 @@ def ablation_experiment(experiment_type, folder_name, num_range, numerical_attri
         
         trace_generator = TraceGenerator(process_model=process_model)
         df = cases_to_dataframe(trace_generator.generate_traces(num_cases=num_cases))
-        results_df = k_fold_evaluation(df, critical_decisions, categorical_attributes, numerical_attributes, base_attributes, parity_keys, folds=folds, n_gram=3, modify_mode="cut", folder_name=None)
+        results_df = k_fold_evaluation(df, critical_decisions, categorical_attributes, numerical_attributes, base_attributes, parity_keys, folds=folds, prefix_length=3, modify_mode="cut", folder_name=None)
         if experiment_type == "decisions":
             results_df["param"] = param * 2
         else:
@@ -673,7 +664,7 @@ def ablation_experiment(experiment_type, folder_name, num_range, numerical_attri
 
 
 
-def run_evaluation(folder_name, folds=5, n_gram=3):
+def run_evaluation(folder_name, folds=5, prefix_length=3):
     if folder_name is None:
         folder_names = ["cs", "hb_-age_-gender", "hb_-age_+gender", "hb_+age_-gender", "hb_+age_+gender", "bpi_2012"]
     else:
@@ -686,7 +677,7 @@ def run_evaluation(folder_name, folds=5, n_gram=3):
         base_attributes = categorical_attributes_base + numerical_attributes_base
         critical_decisions = get_critical_decisions(folder_name)
         parity_keys = get_parity_key(folder_name)
-        k_fold_evaluation(df, critical_decisions, categorical_attributes, numerical_attributes, base_attributes, parity_keys, folds=folds, n_gram=n_gram, folder_name=folder_name)
+        k_fold_evaluation(df, critical_decisions, categorical_attributes, numerical_attributes, base_attributes, parity_keys, folds=folds, prefix_length=prefix_length, folder_name=folder_name)
 
 def run_ablation(folder_name):
     if folder_name is None:
@@ -766,7 +757,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder_name', type=str, default=None, help='Name of the folder to use')
     parser.add_argument('--mode', choices=['a', 'd', 'e', 'l', 'p', 'r'], default=None, help='Name of the mode to use')
-    parser.add_argument('--n_gram', type=int, default=3, help='Value for n-gram (default: 3)')
+    parser.add_argument('--prefix_length', type=int, default=3, help='Value for n-gram (default: 3)')
     parser.add_argument('--folds', type=int, default=5, help='Value for folds (default: 5)')
     parser.add_argument('--num_cases', type=int, default=1000, help='Number of cases to process (default: 1000)')
 

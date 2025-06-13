@@ -6,7 +6,7 @@ import pm4py
 
 from typing import List
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from trace_generator import Case, TraceGenerator
 from tqdm import tqdm 
 from plotting import plot_attributes
@@ -46,7 +46,7 @@ def load_xes_to_df(file_name, folder_name, num_cases=None):
     print(df.head(20))
     return df
 
-def generate_processed_data(process_model, categorical_attributes=[], numerical_attributes=[], num_cases=1000, n_gram=3, folder_name=None):
+def generate_processed_data(process_model, categorical_attributes=[], numerical_attributes=[], num_cases=1000, prefix_length=3, folder_name=None):
     print("generating event traces:")
     trace_generator = TraceGenerator(process_model=process_model)
     cases = trace_generator.generate_traces(num_cases=num_cases)
@@ -60,15 +60,15 @@ def generate_processed_data(process_model, categorical_attributes=[], numerical_
     df = cases_to_dataframe(cases)
     save_data(df, folder_name, "df.pkl")
     
-    X, y, class_names, feature_names, feature_indices = process_df(df, categorical_attributes, numerical_attributes, n_gram=n_gram)
+    X, y, class_names, feature_names, feature_indices = process_df(df, categorical_attributes, numerical_attributes, prefix_length=prefix_length)
     print("--------------------------------------------------------------------------------------------------")
 
     return X, y, class_names, feature_names, feature_indices
 
-def create_feature_names(event_pool, attribute_pools, numerical_attributes, n_gram):
+def create_feature_names(event_pool, attribute_pools, numerical_attributes, prefix_length):
     feature_names = []
     # Add event features for each n-gram step
-    for index in range(n_gram, 0, -1):
+    for index in range(prefix_length, 0, -1):
         for event in sorted(event_pool):
             feature_names.append(f"-{index}. Event = {event}")
     # Add categorical attribute features
@@ -80,11 +80,11 @@ def create_feature_names(event_pool, attribute_pools, numerical_attributes, n_gr
         feature_names.append(numerical_attr)
     return feature_names
 
-def create_feature_indices(event_pool, attribute_pools, numerical_attributes, n_gram):
+def create_feature_indices(event_pool, attribute_pools, numerical_attributes, prefix_length):
     num_events = len(sorted(event_pool))  # Sorted event pool
     feature_indices = {}
     # Allocate indices for events
-    index = num_events * n_gram
+    index = num_events * prefix_length
     # Allocate indices for categorical attributes
     for attribute_name, possible_values in sorted(attribute_pools.items()):
         num_values = len(sorted(possible_values))
@@ -182,7 +182,7 @@ def df_to_xes(df: pd.DataFrame):
     xes_exporter.apply(log, "cancer_screening.xes")
     print("XES log saved to 'output_log.xes'")
 
-def process_df(df, categorical_attributes, numerical_attributes, n_gram=3):
+def process_df(df, categorical_attributes, numerical_attributes, prefix_length=3):
     """Processes dataframe data for neural network training"""
     # keep only specified attributes
     standard_attributes = ['case_id', 'activity']
@@ -195,10 +195,10 @@ def process_df(df, categorical_attributes, numerical_attributes, n_gram=3):
     # create the meta-information
     class_names = sorted(df["activity"].unique().tolist() + ["<PAD>"])
     attribute_pools = create_attribute_pools(df, categorical_attributes)
-    feature_names = create_feature_names(class_names, attribute_pools, numerical_attributes, n_gram)
-    feature_indices = create_feature_indices(class_names, attribute_pools, numerical_attributes, n_gram)
+    feature_names = create_feature_names(class_names, attribute_pools, numerical_attributes, prefix_length)
+    feature_indices = create_feature_indices(class_names, attribute_pools, numerical_attributes, prefix_length)
     print(f"class_names: {class_names}")
-    print(f"amount of classes = {len(class_names)}, ngram = {n_gram}")
+    print(f"amount of classes = {len(class_names)}, ngram = {prefix_length}")
     print(f"attribute_pools: {attribute_pools}")
     print(f"feature_names: {feature_names}")
     print(f"feature_indices: {feature_indices}")
@@ -246,27 +246,27 @@ def process_df(df, categorical_attributes, numerical_attributes, n_gram=3):
 
     for activities, attributes, numerical in tqdm(cases, desc="encoding cases"):
         # Pad activities
-        padded_activities = np.vstack([pad_activity] * n_gram + [activities])
+        padded_activities = np.vstack([pad_activity] * prefix_length + [activities])
         
         # Pad categorical attributes
-        padded_attributes = {attr: np.vstack([pad_attributes[attr]] * n_gram + [attributes[attr]])
+        padded_attributes = {attr: np.vstack([pad_attributes[attr]] * prefix_length + [attributes[attr]])
                             for attr in sorted(attributes)}
 
         # Pad numerical attributes
-        padded_numerical = np.vstack([pad_numerical] * n_gram + [numerical])
+        padded_numerical = np.vstack([pad_numerical] * prefix_length + [numerical])
 
         for i in range(len(activities)):  # Start from 0 and include all real activities
-            x_activities = padded_activities[i:i + n_gram]
+            x_activities = padded_activities[i:i + prefix_length]
             if categorical_attributes:
                 x_attributes = np.hstack([
-                    padded_attributes[attr][i + n_gram] 
+                    padded_attributes[attr][i + prefix_length] 
                     for attr in categorical_attributes
                 ])
             else:
                 x_attributes = np.array([])
 
             if numerical_attributes:
-                x_numerical = padded_numerical[i + n_gram]
+                x_numerical = padded_numerical[i + prefix_length]
             else:
                 x_numerical = np.array([])
 
@@ -342,7 +342,6 @@ def enrich_df(df: pd.DataFrame, rules: list, folder_name: str):
 
     return df
 
-
 def mine_bpm(file_name, folder_name):
     print("Mining BPM...")
     pd.set_option('display.max_columns', None)
@@ -361,71 +360,85 @@ def mine_bpm(file_name, folder_name):
         pm4py.save_vis_dfg(dfg, start_activities, end_activities, os.path.join(output_dir, f"dfg_{variant}.png"), format='png')
     print("--------------------------------------------------------------------------------------------------")
 
-
-def k_fold_cross_validation(df, categorical_attributes, numerical_attributes, critical_decisions, n_gram=3, k=10):
-    # Ensure the attributes are sorted consistently
-    categorical_attributes.sort()
-    numerical_attributes.sort()
+def _prepare_data_splits(train_df, test_df, categorical_attributes, numerical_attributes, critical_decisions=[], prefix_length=3):
     numerical_thresholds = {}
 
-    # Group by case_id for consistent splitting
+    # Sort attributes consistently
+    categorical_attributes = sorted(categorical_attributes)
+    numerical_attributes = sorted(numerical_attributes)
+
+    # Fit encoders on train data
+    class_names = sorted(train_df["activity"].unique().tolist() + ["<PAD>"])
+    activity_encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore", categories=[class_names])
+    activity_encoder.fit(train_df[['activity']])
+    
+    attribute_encoders = {}
+    for attr in categorical_attributes:
+        attribute_pools = sorted(train_df[attr].unique())
+        encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore", categories=[attribute_pools])
+        encoder.fit(train_df[[attr]])
+        attribute_encoders[attr] = encoder
+
+    numerical_scalers = {}
+    for attr in numerical_attributes:
+        scaler = MinMaxScaler()
+        scaler.fit(train_df[[attr]])
+        numerical_scalers[attr] = scaler
+    
+    # Transform train and test data
+    X_train, y_train = transform_samples(
+        train_df, activity_encoder, attribute_encoders, numerical_scalers,
+        categorical_attributes, numerical_attributes, prefix_length
+    )
+    X_test, y_test = transform_samples(
+        test_df, activity_encoder, attribute_encoders, numerical_scalers,
+        categorical_attributes, numerical_attributes, prefix_length, train=False
+    )
+    
+    # Compute thresholds for numerical attributes from critical decisions
+    for decision in critical_decisions:
+        if len(decision.attributes) == 1:
+            attribute = decision.attributes[0]
+            if attribute in numerical_attributes:
+                threshold = numerical_scalers[attribute].transform([[decision.threshold]])
+                numerical_thresholds[attribute] = threshold[0][0]
+
+    return X_train, y_train, X_test, y_test, numerical_thresholds
+
+def k_fold_cross_validation(df, categorical_attributes, numerical_attributes, critical_decisions, prefix_length=3, k=10):
     grouped = df.groupby('case_id')
     case_ids = list(grouped.groups.keys())
-    
-    # Initialize KFold
     kf = KFold(n_splits=k, shuffle=True, random_state=0)
     
     for fold, (train_idx, test_idx) in enumerate(kf.split(case_ids)):
         print(f"Processing fold {fold + 1}/{k}")
-        
-        # Split the data
-        train_case_ids = [list(case_ids)[i] for i in train_idx]
-        test_case_ids = [list(case_ids)[i] for i in test_idx]
+        train_case_ids = [case_ids[i] for i in train_idx]
+        test_case_ids = [case_ids[i] for i in test_idx]
         
         train_df = df[df['case_id'].isin(train_case_ids)]
         test_df = df[df['case_id'].isin(test_case_ids)]
         
-        # Process training data for scaling and encoding
-        class_names = sorted(train_df["activity"].unique().tolist() + ["<PAD>"])
-        activity_encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore", categories=[class_names])
-        activity_encoder.fit(train_df[['activity']])
-        
-        attribute_encoders = {}
-        for attr in categorical_attributes:
-            attribute_pools = sorted(train_df[attr].unique())
-            encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore", categories=[attribute_pools])
-            encoder.fit(train_df[[attr]])
-            attribute_encoders[attr] = encoder
-        
-        numerical_scalers = {}
-        for attr in numerical_attributes:
-            scaler = MinMaxScaler()
-            scaler.fit(train_df[[attr]])
-            numerical_scalers[attr] = scaler
-        
-        # Process training and test data into n-grams
-        X_train, y_train = transform_samples(train_df, activity_encoder, attribute_encoders, numerical_scalers,
-                                         categorical_attributes, numerical_attributes, n_gram)
-        X_test, y_test = transform_samples(test_df, activity_encoder, attribute_encoders, numerical_scalers,
-                                       categorical_attributes, numerical_attributes, n_gram, train=False)
+        yield _prepare_data_splits(
+            train_df, test_df, categorical_attributes, numerical_attributes, critical_decisions, prefix_length
+        )
 
-        # get the thresholds for the numerical attributes
-        for decision in critical_decisions:
-            if len(decision.attributes) == 1:
-                attribute = decision.attributes[0]
-                if attribute in numerical_attributes:
-                    threshold = numerical_scalers[attribute].transform([[decision.threshold]])
-                    numerical_thresholds[attribute] = threshold[0][0]
-
-        
-
-        print(f"Fold {fold + 1}: Train samples = {len(X_train)}, Test samples = {len(X_test)}")
-        print(numerical_thresholds)
-        yield X_train, y_train, X_test, y_test, numerical_thresholds
-
+def train_test_split_encoding(df, categorical_attributes, numerical_attributes, test_size=0.3, prefix_length=3, shuffle=False):
+    # Group by case_id for splitting
+    grouped = df.groupby('case_id')
+    case_ids = list(grouped.groups.keys())
+    
+    train_ids, test_ids = train_test_split(case_ids, test_size=test_size, random_state=0, shuffle=shuffle)
+    
+    train_df = df[df['case_id'].isin(train_ids)]
+    test_df = df[df['case_id'].isin(test_ids)]
+    
+    X_train, y_train, X_test, y_test, _ = _prepare_data_splits(
+        train_df, test_df, categorical_attributes, numerical_attributes, prefix_length=prefix_length
+    )
+    return X_train, y_train, X_test, y_test
 
 def transform_samples(df, activity_encoder, attribute_encoders, numerical_scalers,
-                  categorical_attributes, numerical_attributes, n_gram, train=True):
+                  categorical_attributes, numerical_attributes, prefix_length, train=True):
     """
     Generate n-gram sequences from the dataset.
     """
@@ -433,7 +446,7 @@ def transform_samples(df, activity_encoder, attribute_encoders, numerical_scaler
     cases = []
 
     # Prepare data for each case
-    for case_id, group in tqdm(grouped, desc="Preparing cases" if train else "Processing test cases"):
+    for case_id, group in tqdm(grouped, desc="Preparing train cases" if train else "Processing test cases"):
         activities = activity_encoder.transform(group[['activity']])
         attributes = {attr: attribute_encoders[attr].transform(group[[attr]]) for attr in categorical_attributes}
         
@@ -449,15 +462,23 @@ def transform_samples(df, activity_encoder, attribute_encoders, numerical_scaler
     pad_numerical = np.zeros((1, len(numerical_attributes)))
 
     for activities, attributes, numerical in cases:
-        padded_activities = np.vstack([pad_activity] * n_gram + [activities])
-        padded_attributes = {attr: np.vstack([pad_attributes[attr]] * n_gram + [attributes[attr]])
+        padded_activities = np.vstack([pad_activity] * prefix_length + [activities])
+        padded_attributes = {attr: np.vstack([pad_attributes[attr]] * prefix_length + [attributes[attr]])
                              for attr in sorted(attributes)}
-        padded_numerical = np.vstack([pad_numerical] * n_gram + [numerical])
+        padded_numerical = np.vstack([pad_numerical] * prefix_length + [numerical])
 
         for i in range(len(activities)):
-            x_activities = padded_activities[i:i + n_gram]
-            x_attributes = np.hstack([padded_attributes[attr][i + n_gram] for attr in categorical_attributes])
-            x_numerical = padded_numerical[i + n_gram]
+            x_activities = padded_activities[i:i + prefix_length]
+
+            if categorical_attributes:
+                x_attributes = np.hstack([padded_attributes[attr][i + prefix_length] for attr in categorical_attributes])
+            else:
+                x_attributes = np.array([])
+
+            if numerical_attributes:
+                x_numerical = padded_numerical[i + prefix_length]
+            else:
+                x_numerical = np.array([])
 
             x_combined = np.hstack([x_activities.flatten(), x_attributes, x_numerical])
             y_next_activity = activities[i]

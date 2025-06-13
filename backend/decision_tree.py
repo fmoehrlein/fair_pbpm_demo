@@ -186,7 +186,7 @@ class DecisionTreeClassifier:
             elif parent_direction == None:
                 self.root = node.left
         # if no direction is given, compare num_samples and delete the one 
-        elif direction is None:
+        elif direction == 'main':
             if node.left is not None and node.right is not None:
                 if node.left.num_samples < node.right.num_samples:
                     if parent_direction == 'left':
