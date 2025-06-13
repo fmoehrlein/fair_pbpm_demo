@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend API Tester</title>
+</head>
+<body>
+    <h1>API Tester</h1>
+    <button onclick="callApi('/api/hello')">Hello World</button><br><br>
+
+    <input type="file" id="xesFile">
+    <button onclick="uploadXes()">Load XES File</button><br><br>
+
+    <button onclick="postJSON('/api/process_data', {folder_name:'cs', prefix_length:3, cat_attributes:[], num_attributes:[], sensitive_attributes:[], test_split:0.2})">Process Data</button><br><br>
+    <button onclick="postJSON('/api/train_model', {folder_name:'cs', epochs:10, learning_rate:0.01, hidden_units:[512, 256, 128, 64, 32]})">Train Model</button><br><br>
+    <button onclick="postJSON('/api/distill_tree', {folder_name:'cs', min_samples_split:2, max_depth:5, ccp_alpha:0.01})">Distill Tree</button><br><br>
+    <button onclick="postJSON('/api/modify_node', {folder_name:'cs', node_id:1, feature_index:0, threshold:0.5})">Modify Node</button><br><br>
+    <button onclick="postJSON('/api/modify_retrain', {folder_name:'cs', node_id:1})">Modify Retrain</button><br><br>
+    <button onclick="postJSON('/api/modify_cut', {folder_name:'cs', node_id:1, direction:'left'})">Modify Cut</button><br><br>
+    <button onclick="postJSON('/api/finetune', {folder_name:'cs', mode:'quick', learning_rate:0.001, epoch:5})">Finetune</button><br><br>
+
+    <pre id="output"></pre>
+
+    <script>
+        async function callApi(path) {
+            const res = await fetch('http://localhost:5000' + path);
+            const data = await res.json();
+            document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+        }
+
+        async function postJSON(path, payload) {
+            const res = await fetch('http://localhost:5000' + path, {
+                method: "POST",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+        }
+
+        async function uploadXes() {
+            const file = document.getElementById("xesFile").files[0];
+            const folder = 'cs';
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("folder_name", folder);
+
+            const res = await fetch("http://localhost:5000/api/load_xes", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
