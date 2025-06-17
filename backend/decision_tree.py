@@ -56,9 +56,15 @@ class DecisionTreeClassifier:
         return accuracy_score(y, predictions)
 
     def visualize(self, print_features=False, print_classes=False):
-        self._print_sub_tree(self.root, print_features=print_features, print_classes=print_classes)
-    
-    def _print_sub_tree(self, node, depth=0, indent="", print_features=False, print_classes=False):
+        tree_str = self.to_str(print_features=print_features, print_classes=print_classes)
+        print(tree_str)
+
+    def to_str(self, print_features=False, print_classes=False):
+        return self._sub_tree_to_str(self.root, indent="", print_features=print_features, print_classes=print_classes)
+
+    def _sub_tree_to_str(self, node, depth=0, indent="", print_features=False, print_classes=False):
+        lines = []
+
         if print_features:
             removed_features_str = f", removed: {node.removed_features}" if node.removed_features else ""
         else:
@@ -69,17 +75,18 @@ class DecisionTreeClassifier:
             collected_class_names_str = ""
 
         if node.output is not None:
-            # Print the class name if it's a leaf node
             class_name = self.class_names[node.output] if self.class_names is not None else node.output
-            print(f"{indent}|--- [{node.node_id}] class: {class_name} [{node.num_samples}]")
+            lines.append(f"{indent}|--- [{node.node_id}] class: {class_name} [{node.num_samples}]")
         else:
             feature_name = self.feature_names[node.feature_index] if self.feature_names is not None else f"Feature {node.feature_index}"
-            # Print the current decision rule for the left child (<= threshold)
-            print(f"{indent}|--- [{node.node_id}] ({feature_name}) <= {node.threshold:.2f}{removed_features_str}{collected_class_names_str} [{node.num_samples}]")
-            self._print_sub_tree(node.left, depth + 1, indent + "|   ")
-            # Print the current decision rule for the right child (> threshold)
-            print(f"{indent}|--- [{node.node_id}] ({feature_name}) >  {node.threshold:.2f}{removed_features_str}{collected_class_names_str} [{node.num_samples}]")
-            self._print_sub_tree(node.right, depth + 1, indent + "|   ")
+            # Decision rule for left child
+            lines.append(f"{indent}|--- [{node.node_id}] ({feature_name}) <= {node.threshold:.2f}{removed_features_str}{collected_class_names_str} [{node.num_samples}]")
+            lines.append(self._sub_tree_to_str(node.left, depth + 1, indent + "|   ", print_features, print_classes))
+            # Decision rule for right child
+            lines.append(f"{indent}|--- [{node.node_id}] ({feature_name}) >  {node.threshold:.2f}{removed_features_str}{collected_class_names_str} [{node.num_samples}]")
+            lines.append(self._sub_tree_to_str(node.right, depth + 1, indent + "|   ", print_features, print_classes))
+
+        return "\n".join(lines)
 
     def _grow_tree(self, X, y, depth=0, max_depth=None, removed_features=[], recursive_removal=True):
         """Recursively grows the decision tree."""
@@ -186,7 +193,7 @@ class DecisionTreeClassifier:
             elif parent_direction == None:
                 self.root = node.left
         # if no direction is given, compare num_samples and delete the one 
-        elif direction == 'main':
+        elif direction == 'auto':
             if node.left is not None and node.right is not None:
                 if node.left.num_samples < node.right.num_samples:
                     if parent_direction == 'left':
@@ -205,7 +212,21 @@ class DecisionTreeClassifier:
             else:
                 raise ValueError(f"Node {node_id} has no children to delete.")
         else:
-            raise ValueError("Direction must be 'left', 'right', or None.")
+            raise ValueError("Direction must be 'left', 'right', or 'auto'.")
+
+    def modify_node(self, node_id, feature_index=None, threshold=None):
+        _, node, _ = self._find_node(self.root, node_id)
+
+        if node is None:
+            print(f"Node with id {node_id} not found.")
+            return
+
+        if node.output is not None:
+            print(f"Node with id {node_id} is a leaf node.")
+            return
+
+        node.feature_index = feature_index if feature_index is not None else node.feature_index
+        node.threshold = threshold if threshold is not None else node.threshold
 
     def delete_node(self, X, y, node_id, recursive_removal=True):
         """Delete the node with the specified node_id and regrow the subtree."""
@@ -410,10 +431,8 @@ class DecisionTreeClassifier:
 
         return output
 
-        
-
-def save_tree_to_json(tree, file_path):
-    """Saves the decision tree model along with its attributes to a JSON file."""
+def tree_to_json(tree):
+    """Converts the decision tree model along with its attributes to a JSON-serializable dictionary."""
 
     def convert_to_python_type(value):
         """Convert numpy data types to native Python types for JSON serialization."""
@@ -422,7 +441,7 @@ def save_tree_to_json(tree, file_path):
         elif isinstance(value, np.floating):
             return float(value)
         elif isinstance(value, np.ndarray):
-            return value.tolist()  # Convert numpy arrays to lists
+            return value.tolist()
         return value
 
     def node_to_dict(node):
@@ -441,8 +460,7 @@ def save_tree_to_json(tree, file_path):
             'depth': convert_to_python_type(node.depth)
         }
 
-    # Create a dictionary with both the tree and its classifier attributes
-    tree_dict = {
+    return {
         'root': node_to_dict(tree.root),
         'id_counter': convert_to_python_type(tree.id_counter),
         'feature_names': convert_to_python_type(tree.feature_names),
@@ -450,9 +468,13 @@ def save_tree_to_json(tree, file_path):
         'class_names': convert_to_python_type(tree.class_names)
     }
 
-    # Save to the specified JSON file
+def save_tree_to_json(tree, file_path):
+    """Saves the decision tree model to a JSON file using tree_to_json()."""
+    tree_dict = tree_to_json(tree)
     with open(file_path, 'w') as json_file:
         json.dump(tree_dict, json_file, indent=4)
+    return tree_dict
+
 
 def load_tree_from_json(file_path):
     """Loads a decision tree from a JSON file and reconstructs the tree."""

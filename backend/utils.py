@@ -167,6 +167,64 @@ def calculate_comparable_fairness(nn_base, nn_enriched, nn_modified, X, critical
  
     return stat_par_results, disp_imp_results
 
+def create_fairness_dataframe(X, y, class_names, feature_names, feature_indices):
+    df_data = {
+        "prev_act": [],
+        "next_act": []
+    }
+
+    binary_attribute_columns = []
+
+    for attr, indices in feature_indices.items():
+        if len(indices) == 1:
+            df_data[attr] = []
+        else:
+            for idx in indices:
+                col_name = feature_names[idx]
+                binary_attribute_columns.append((attr, col_name, idx))
+                df_data[col_name] = []
+
+    event_indices = [i for i, name in enumerate(feature_names) if "-1. Event =" in name]
+
+    for i in range(X.shape[0]):
+        x_row = X[i]
+        y_val = y[i]
+        next_act = class_names[y_val]
+
+        last_event_values = x_row[event_indices]
+
+        try:
+            act_idx = np.where(last_event_values == 1)[0][0]
+            prev_act = class_names[act_idx]
+        except IndexError:
+            prev_act = "<UNK>"
+
+        df_data["prev_act"].append(prev_act)
+        df_data["next_act"].append(next_act)
+
+        for attr, indices in feature_indices.items():
+            if len(indices) == 1:
+                df_data[attr].append(x_row[indices[0]])
+
+        for attr, col_name, idx in binary_attribute_columns:
+            df_data[col_name].append(int(x_row[idx]))
+
+    return pd.DataFrame(df_data)
+
+def calculate_statistical_parity(df: pd.DataFrame, next_act: str, attribute: str) -> float:
+    if attribute not in df.columns:
+        raise ValueError(f"Attribute column '{attribute}' not found in DataFrame.")
+    
+    group_1 = df[df[attribute] == 1]
+    rate_1 = (group_1['next_act'] == next_act).mean()
+    group_0 = df[df[attribute] == 0]
+    rate_0 = (group_0['next_act'] == next_act).mean()
+
+    # Statistical parity: difference in selection rates
+    stat_parity = rate_1 - rate_0
+
+    return stat_parity
+
 def remove_attribute_features(X, feature_indices, base_attributes):
     remove_indices = [idx for attr, indices in feature_indices.items() if attr not in base_attributes for idx in indices]
     return np.delete(X, remove_indices, axis=1)

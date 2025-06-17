@@ -2,17 +2,15 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import pandas as pd
+import time
+from datetime import datetime, timedelta
+import threading
 
 from utils import *
+from cleanup import start_cleanup_thread
 
 app = Flask(__name__)
 CORS(app)
-
-
-@app.route("/api/hello", methods=["GET"])
-def hello():
-    return jsonify({"message": "Hello World"})
-
 
 @app.route("/api/load_xes", methods=["POST"])
 def load_xes():
@@ -37,16 +35,17 @@ def load_xes():
     return jsonify(stats)
 
 
-@app.route("/api/process_data", methods=["POST"])
-def process_data():
+@app.route("/api/process_and_train", methods=["POST"])
+def process_and_train():
     data = request.json
     folder_name = data.get("folder_name")
     df = load_data(folder_name, "event_log_df.pkl")
 
+    # --- Step 1: Process Data ---
     cat_attributes = data.get("cat_attributes", [])
     num_attributes = data.get("num_attributes", [])
-    test_size = data.get("test_split", 0.3)  # default 0.3
-    prefix_length = data.get("prefix_length", 3)  # if you want to allow override
+    test_size = data.get("test_split", 0.3)
+    prefix_length = data.get("prefix_length", 3)
     shuffle = data.get("shuffle", False)
 
     X_train, y_train, X_test, y_test = train_test_split_encoding(
@@ -57,6 +56,7 @@ def process_data():
         prefix_length=prefix_length,
         shuffle=shuffle,
     )
+
     save_data(X_train, folder_name, "X_train.pkl")
     save_data(y_train, folder_name, "y_train.pkl")
     save_data(X_test, folder_name, "X_test.pkl")
@@ -75,20 +75,9 @@ def process_data():
     save_data(feature_names, folder_name, "feature_names.pkl")
     save_data(feature_indices, folder_name, "feature_indices.pkl")
 
-    return jsonify({"status": "processed", "params": data})
-
-
-@app.route("/api/train_model", methods=["POST"])
-def train_model():
-    data = request.json
-    folder_name = data.get("folder_name")
-    X_train = load_data(folder_name, "X_train.pkl")
-    y_train = load_data(folder_name, "y_train.pkl")
-    X_test = load_data(folder_name, "X_test.pkl")
-    y_test = load_data(folder_name, "y_test.pkl")
-
-    hidden_units = data.get("hidden_units", [512, 256, 128, 64])  # expect list
-    epochs = data.get("epochs", 10)
+    # --- Step 2: Train Model ---
+    hidden_units = data.get("hidden_units", [512, 256, 128, 64])
+    epochs = data.get("epochs", 5)
     learning_rate = data.get("learning_rate", 0.001)
     batch_size = data.get("batch_size", 32)
 
@@ -102,11 +91,12 @@ def train_model():
         learning_rate=learning_rate,
         batch_size=batch_size,
     )
+
     accuracy = evaluate_nn(model, X_test, y_test)
 
     return jsonify(
         {
-            "status": "model trained",
+            "status": "processed and trained",
             "params": data,
             "accuracy": accuracy,
         }
@@ -121,8 +111,12 @@ def distill_tree():
     max_depth = data.get("max_depth", None)
     min_samples_split = data.get("min_samples_split", 2)
     min_samples_leaf = data.get("min_samples_leaf", 1)
+    model_to_use = data.get("model_to_use", "original")
 
-    nn = load_nn(folder_name, "nn.keras")
+    if model_to_use == "original":
+        nn = load_nn(folder_name, "nn.keras")
+    else:
+        nn = load_nn(folder_name, "nn_modified.keras")
     X_train = load_data(folder_name, "X_train.pkl")
     X_test = load_data(folder_name, "X_test.pkl")
     y_test = load_data(folder_name, "y_test.pkl")
@@ -135,8 +129,6 @@ def distill_tree():
     dt_distilled = train_dt(
         X_train,
         y_encoded,
-        folder_name=folder_name,
-        model_name="tree.json",
         class_names=class_names,
         feature_names=feature_names,
         feature_indices=feature_indices,
@@ -146,13 +138,23 @@ def distill_tree():
         min_samples_leaf=min_samples_leaf,
     )
     y_distilled_tree = dt_distilled.predict(X_train)
-    y_distilled_tree = to_categorical(y_distilled_tree, num_classes=len(dt_distilled.class_names))
+    y_distilled_tree = to_categorical(
+        y_distilled_tree, num_classes=len(dt_distilled.class_names)
+    )
 
+    tree_json = save_dt(dt_distilled, folder_name, "tree.json")
     accuracy = evaluate_dt(dt_distilled, X_test, y_test)
     save_data(y_distilled, folder_name, "y_distilled.pkl")
     save_data(y_distilled_tree, folder_name, "y_distilled_tree.pkl")
 
-    return jsonify({"accuracy": accuracy, "status": "tree distilled", "params": data})
+    return jsonify(
+        {
+            "accuracy": accuracy,
+            "status": "tree distilled",
+            "params": data,
+            "tree": tree_json,
+        }
+    )
 
 
 @app.route("/api/load_tree", methods=["POST"])
@@ -163,30 +165,44 @@ def load_tree():
     try:
         with open(dt_path, "r") as f:
             tree = json.load(f)
-        return jsonify({
-            "tree": tree,
-            "status": "tree loaded",
-            "params": data
-        })
+        return jsonify({"tree": tree, "status": "tree loaded", "params": data})
     except FileNotFoundError:
-        return jsonify({
-            "error": f"File not found: {dt_path}",
-            "status": "failed",
-            "params": data
-        }), 404
+        return (
+            jsonify(
+                {
+                    "error": f"File not found: {dt_path}",
+                    "status": "failed",
+                    "params": data,
+                }
+            ),
+            404,
+        )
     except json.JSONDecodeError:
-        return jsonify({
-            "error": f"Invalid JSON in file: {dt_path}",
-            "status": "failed",
-            "params": data
-        }), 400
+        return (
+            jsonify(
+                {
+                    "error": f"Invalid JSON in file: {dt_path}",
+                    "status": "failed",
+                    "params": data,
+                }
+            ),
+            400,
+        )
 
 
 @app.route("/api/modify_node", methods=["POST"])
-#TODO
 def modify_node():
     data = request.json
-    return jsonify({"status": "node modified", "params": data})
+    folder_name = data.get("folder_name")
+    node_id = data.get("node_id")
+    threshold = data.get("threshold", None)
+    feature_index = data.get("feature_index", None)
+
+    tree = load_dt(folder_name, "tree.json")
+    tree.modify_node(node_id, threshold=threshold, feature_index=feature_index)
+    tree_json = save_dt(tree, folder_name, "tree.json")
+
+    return jsonify({"status": "node modified", "params": data, "tree": tree_json})
 
 
 @app.route("/api/modify_retrain", methods=["POST"])
@@ -199,9 +215,9 @@ def modify_retrain():
     y_train = load_data(folder_name, "y_train.pkl")
     tree = load_dt(folder_name, "tree.json")
     tree.delete_node(X_train, y_train, tree, node_id)
-    save_dt(tree, folder_name, "tree.json")
+    tree_json = save_dt(tree, folder_name, "tree.json")
 
-    return jsonify({"status": "subtree retrained", "params": data})
+    return jsonify({"status": "subtree retrained", "params": data, "tree": tree_json})
 
 
 @app.route("/api/modify_cut", methods=["POST"])
@@ -209,13 +225,13 @@ def modify_cut():
     data = request.json
     folder_name = data.get("folder_name")
     node_id = data.get("node_id")
-    direction = data.get("direction", None)
+    direction = data.get("direction", "auto")
 
     tree = load_dt(folder_name, "tree.json")
     tree.delete_branch(node_id, direction)
-    save_dt(tree, folder_name, "tree.json")
+    tree_json = save_dt(tree, folder_name, "tree.json")
 
-    return jsonify({"status": "branch cut", "params": data})
+    return jsonify({"status": "branch cut", "params": data, "tree": tree_json})
 
 
 @app.route("/api/finetune", methods=["POST"])
@@ -223,6 +239,9 @@ def finetune():
     data = request.json
     folder_name = data.get("folder_name")
     finetuning_mode = data.get("finetuning_mode", "changed_complete")
+    epochs = data.get("epochs", 3)
+    learning_rate = data.get("learning_rate", 0.001)
+    batch_size = data.get("batch_size", 32)
 
     X_train = load_data(folder_name, "X_train.pkl")
     X_test = load_data(folder_name, "X_test.pkl")
@@ -235,12 +254,26 @@ def finetune():
     y_modified = dt_distilled.predict(X_train)
     y_modified = to_categorical(y_modified, num_classes=len(dt_distilled.class_names))
 
-    nn_modified = finetune_nn(nn, X_train, y_modified, y_distilled=y_distilled, y_distilled_tree=y_distilled_tree, X_test=X_test, y_test=y_test, mode=finetuning_mode)
+    nn_modified = finetune_nn(
+        nn,
+        X_train,
+        y_modified,
+        epochs=epochs,
+        learning_rate=learning_rate,
+        batch_size=batch_size,
+        y_distilled=y_distilled,
+        y_distilled_tree=y_distilled_tree,
+        X_test=X_test,
+        y_test=y_test,
+        mode=finetuning_mode,
+    )
+    save_nn(nn_modified, folder_name, "nn_modified.keras")
     accuracy = evaluate_nn(nn_modified, X_test, y_test)
     return jsonify({"accuracy": accuracy, "status": "model fine-tuned", "params": data})
 
-
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
+    print("Starting cleanup thread...")
+    start_cleanup_thread()
     print("Starting backend...")
     app.run(debug=True)
