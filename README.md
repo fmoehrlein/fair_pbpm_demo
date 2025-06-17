@@ -9,7 +9,10 @@ Run the startup script (requires Python 3.11):
    - **Linux**: `./run.sh`
    - **Windows**: `./run.bat` (untested, AI generated based on run.sh)
 
-This creates a virtual environment (if needed), installs requirements, and starts the backend server.  
+This creates a virtual environment of Python 3.11 (if needed), installs requirements.txt, and starts the backend server using:  
+
+    python backend/backend.py
+
 *(First run will take a couple of minutes.)*
 
 ## Try the Interface
