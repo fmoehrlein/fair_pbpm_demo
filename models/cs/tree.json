@@ -37,15 +37,15 @@
                             "removed_features": [],
                             "left": {
                                 "node_id": 6,
-                                "feature_index": 29,
+                                "feature_index": 24,
                                 "threshold": 0.5,
                                 "num_samples": 3711,
                                 "removed_features": [],
                                 "left": {
                                     "node_id": 7,
-                                    "feature_index": 24,
+                                    "feature_index": 29,
                                     "threshold": 0.5,
-                                    "num_samples": 3677,
+                                    "num_samples": 3671,
                                     "removed_features": [],
                                     "left": {
                                         "node_id": 8,
@@ -92,7 +92,7 @@
                                             "removed_features": [],
                                             "left": null,
                                             "right": null,
-                                            "output": 9,
+                                            "output": 7,
                                             "depth": 9
                                         },
                                         "output": null,
@@ -102,11 +102,11 @@
                                         "node_id": 13,
                                         "feature_index": null,
                                         "threshold": null,
-                                        "num_samples": 40,
+                                        "num_samples": 34,
                                         "removed_features": [],
                                         "left": null,
                                         "right": null,
-                                        "output": 9,
+                                        "output": 6,
                                         "depth": 8
                                     },
                                     "output": null,
@@ -116,11 +116,11 @@
                                     "node_id": 14,
                                     "feature_index": null,
                                     "threshold": null,
-                                    "num_samples": 34,
+                                    "num_samples": 40,
                                     "removed_features": [],
                                     "left": null,
                                     "right": null,
-                                    "output": 6,
+                                    "output": 8,
                                     "depth": 7
                                 },
                                 "output": null,
@@ -142,23 +142,12 @@
                         },
                         "right": {
                             "node_id": 16,
-                            "feature_index": 33,
+                            "feature_index": 34,
                             "threshold": 0.5,
                             "num_samples": 3485,
                             "removed_features": [],
                             "left": {
                                 "node_id": 17,
-                                "feature_index": null,
-                                "threshold": null,
-                                "num_samples": 2441,
-                                "removed_features": [],
-                                "left": null,
-                                "right": null,
-                                "output": 8,
-                                "depth": 6
-                            },
-                            "right": {
-                                "node_id": 18,
                                 "feature_index": null,
                                 "threshold": null,
                                 "num_samples": 1044,
@@ -168,6 +157,17 @@
                                 "output": 7,
                                 "depth": 6
                             },
+                            "right": {
+                                "node_id": 18,
+                                "feature_index": null,
+                                "threshold": null,
+                                "num_samples": 2441,
+                                "removed_features": [],
+                                "left": null,
+                                "right": null,
+                                "output": 8,
+                                "depth": 6
+                            },
                             "output": null,
                             "depth": 5
                         },
@@ -175,55 +175,64 @@
                         "depth": 4
                     },
                     "right": {
-                        "node_id": 21,
-                        "feature_index": null,
-                        "threshold": null,
-                        "num_samples": 3496,
-                        "removed_features": [],
-                        "left": null,
-                        "right": null,
-                        "output": 3,
-                        "depth": 5
+                        "node_id": 25,
+                        "feature_index": 35,
+                        "threshold": 0.865079365079365,
+                        "num_samples": 6971,
+                        "removed_features": [
+                            33,
+                            34
+                        ],
+                        "left": {
+                            "node_id": 27,
+                            "feature_index": null,
+                            "threshold": null,
+                            "num_samples": 6960,
+                            "removed_features": [
+                                33,
+                                34
+                            ],
+                            "left": null,
+                            "right": null,
+                            "output": 9,
+                            "depth": 5
+                        },
+                        "right": {
+                            "node_id": 26,
+                            "feature_index": null,
+                            "threshold": null,
+                            "num_samples": 11,
+                            "removed_features": [
+                                33,
+                                34
+                            ],
+                            "left": null,
+                            "right": null,
+                            "output": 3,
+                            "depth": 5
+                        },
+                        "output": null,
+                        "depth": 4
                     },
                     "output": null,
                     "depth": 3
                 },
                 "right": {
                     "node_id": 22,
-                    "feature_index": 35,
-                    "threshold": 0.722222238779068,
+                    "feature_index": null,
+                    "threshold": null,
                     "num_samples": 3471,
                     "removed_features": [],
-                    "left": {
-                        "node_id": 23,
-                        "feature_index": null,
-                        "threshold": null,
-                        "num_samples": 3394,
-                        "removed_features": [],
-                        "left": null,
-                        "right": null,
-                        "output": 6,
-                        "depth": 4
-                    },
-                    "right": {
-                        "node_id": 24,
-                        "feature_index": null,
-                        "threshold": null,
-                        "num_samples": 77,
-                        "removed_features": [],
-                        "left": null,
-                        "right": null,
-                        "output": 5,
-                        "depth": 4
-                    },
-                    "output": null,
+                    "left": null,
+                    "right": null,
+                    "output": 6,
                     "depth": 3
                 },
                 "output": null,
                 "depth": 2
             },
             "right": {
-                "node_id": 25,
+                "node_id": 23,
                 "feature_index": null,
                 "threshold": null,
                 "num_samples": 7000,
@@ -237,7 +246,7 @@
             "depth": 1
         },
         "right": {
-            "node_id": 26,
+            "node_id": 24,
             "feature_index": null,
             "threshold": null,
             "num_samples": 7036,
@@ -250,7 +259,7 @@
         "output": null,
         "depth": 0
     },
-    "id_counter": 27,
+    "id_counter": 28,
     "feature_names": [
         "-3. Event = <PAD>",
         "-3. Event = asses eligibility",

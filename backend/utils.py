@@ -3,22 +3,44 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import numpy as np
 import sys
+import json
 import argparse
+from flask import jsonify
 
+print("importing tensorflow")
 import tensorflow as tf
+print("importing keras")
 from tensorflow.keras import Input
 from tensorflow.keras.models import Sequential, load_model, clone_model
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
-
+print("importing sklearn")
 from sklearn.tree import DecisionTreeClassifier as SklearnDecisionTreeClassifier
-
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score
+)
+print("importing own modules")
 from trace_generator import *
 from data_processing import *
 from decision_tree import *
 from plotting import *
+
+def save_json(data, folder_name, filename):
+    folder_path = os.path.join("data", folder_name)
+    os.makedirs(folder_path, exist_ok=True)
+    file_path = os.path.join(folder_path, filename)
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=4)
+
+def load_json(folder_name, filename):
+    file_path = os.path.join("data", folder_name, filename)
+    with open(file_path, "r") as f:
+        return json.load(f)
 
 def generate_data(num_cases, model_name, prefix_length):
     process_model = build_process_model(model_name)
@@ -113,6 +135,18 @@ def evaluate_nn(model, X_test, y_test):
     print(f'accuracy: {test_accuracy:.3f}, loss: {test_loss:.3f}')
     print("--------------------------------------------------------------------------------------------------")
     return test_accuracy
+
+def calculate_metrics(y_true, y_pred):
+    y_true = np.argmax(y_true, axis=1)
+    if y_pred.ndim == 2:
+        y_pred = np.argmax(y_pred, axis=1)
+    metrics = {
+        "accuracy": accuracy_score(y_true, y_pred),
+        "precision": precision_score(y_true, y_pred, average="weighted", zero_division=0),
+        "recall": recall_score(y_true, y_pred, average="weighted", zero_division=0),
+        "f1_score": f1_score(y_true, y_pred, average="weighted", zero_division=0)
+    }
+    return metrics
 
 
 def calculate_comparable_fairness(nn_base, nn_enriched, nn_modified, X, critical_decisions, feature_indices, class_names, feature_names, base_attributes, numerical_thresholds):
