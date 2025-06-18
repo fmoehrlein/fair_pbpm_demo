@@ -6,7 +6,7 @@ Run the backend and try the interface locally.
 
 Run the startup script (requires Python 3.11):
 
-   - **Linux**: `./run.sh`
+   - **Bash on Windows**: `./run.sh`
    - **Windows**: `./run.bat` (untested, AI generated based on run.sh)
 
 This creates a virtual environment of Python 3.11 (if needed), installs requirements.txt, and starts the backend server using:  

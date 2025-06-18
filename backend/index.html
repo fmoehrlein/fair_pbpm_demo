@@ -5,7 +5,7 @@
 </head>
 <body>
     <h1>API Tester</h1>
-    <button onclick="callApi('/api/hello_world')">Hello World</button><br><br>
+    <button onclick="postJSON('/api/hello_world', {name: 'world'})">Hello World</button><br><br>
 
     <input type="file" id="xesFile">
     <button onclick="uploadXes()">Load XES File</button><br><br>
@@ -24,28 +24,19 @@
     <button onclick="postJSON('/api/distill_tree', {folder_name:'cs', min_samples_split:2, max_depth:100, ccp_alpha:0.001})">Distill Tree</button><br><br>
     <button onclick="postJSON('/api/load_tree', {folder_name:'cs'})">Load Tree</button><br><br>
 
-    <!-- Modify Node with hardcoded values -->
-    <button onclick="postJSON('/api/modify_node', {folder_name:'cs', node_id:1, feature_index:0, threshold:0})">Modify Node</button><br><br>
-
     <!-- Modify Retrain with input field for node_id -->
     <input type="text" id="retrainNodeId" placeholder="Enter node_id for retrain">
-    <button onclick="postJSON('/api/modify_retrain', {folder_name:'cs', node_id: parseInt(document.getElementById('retrainNodeId').value)})">Modify Retrain</button><br><br>
+    <button onclick="postJSON('/api/modify', {folder_name:'cs', mode: 'retrain', node_id: parseInt(document.getElementById('retrainNodeId').value)})">Modify Retrain</button><br><br>
 
     <!-- Modify Cut with input field for node_id -->
     <input type="text" id="cutNodeId" placeholder="Enter node_id for cut">
-    <button onclick="postJSON('/api/modify_cut', {folder_name:'cs', node_id: parseInt(document.getElementById('cutNodeId').value), direction:'auto'})">Modify Cut</button><br><br>
+    <button onclick="postJSON('/api/modify', {folder_name:'cs', mode: 'discard', node_id: parseInt(document.getElementById('cutNodeId').value), direction:'auto'})">Modify Cut</button><br><br>
 
     <button onclick="postJSON('/api/finetune', {folder_name:'cs', mode:'changed_complete', learning_rate:0.001, epoch:5})">Finetune</button><br><br>
 
     <pre id="output"></pre>
 
     <script>
-        async function callApi(path) {
-            const res = await fetch('http://localhost:5000' + path);
-            const data = await res.json();
-            document.getElementById("output").innerText = JSON.stringify(data, null, 2);
-        }
-
         async function postJSON(path, payload) {
             const res = await fetch('http://localhost:5000' + path, {
                 method: "POST",
