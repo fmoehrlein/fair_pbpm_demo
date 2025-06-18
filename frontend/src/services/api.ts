@@ -106,11 +106,11 @@ export default class Api {
     }
 
     public cutNode = async (sessionId: string, params: CutNodeParams): Promise<ModifyResult | undefined> => {
-        return this.genericAction(sessionId, "modify_cut", params);
+        return this.genericAction(sessionId, "modify", params);
     }
 
     public retrainNode = async (sessionId: string, params: RetrainNodeParams): Promise<ModifyResult | undefined> => {
-        return this.genericAction(sessionId, "modify_retrain", params);
+        return this.genericAction(sessionId, "modify", params);
     }
 
     public fineTune = async (sessionId: string, params: FineTuneParams): Promise<FineTuneResult | undefined> => {

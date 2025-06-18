@@ -46,13 +46,23 @@ def load_xes():
         return jsonify({"error": "Saved file not found for processing"}), 500
     except Exception as e:
         return jsonify({"error": f"Error loading XES file: {str(e)}"}), 500
+    
+    try:
+        columns = df.columns.tolist()
+        columns.remove("case_id")
+        columns.remove("activity")
+        columns.remove("time:timestamp")
+    except KeyError as e:
+        return jsonify({"error": f"Missing expected column in data frame: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Error processing data frame: {str(e)}"}), 500
 
     try:
         stats = {
             "num_cases": df["case_id"].nunique(),
             "num_events": len(df),
             "events_per_case": df.groupby("case_id").size().mean(),
-            "columns": df.columns.tolist(),
+            "attributes": columns
         }
         return jsonify(stats)
     except KeyError as e:
@@ -174,17 +184,17 @@ def distill_tree():
     min_samples_split = data.get("min_samples_split", 2)
     min_samples_leaf = data.get("min_samples_leaf", 1)
     model_to_use = data.get("model_to_use", "original")
-    model_name = "nn.keras" if model_to_use == "original" else "nn_modified.keras"
+    model_name = "nn" if model_to_use == "original" else "nn_modified"
 
     try:
-        nn = load_nn(folder_name, model_name)
+        nn = load_nn(folder_name, f"{model_name}.keras")
     except FileNotFoundError:
         return jsonify({"error": f"Neural network model '{model_name}' not found"}), 500
     except Exception as e:
         return jsonify({"error": f"Error loading neural network: {str(e)}"}), 500
 
     try:
-        nn_evaluation = load_json(folder_name, "nn_modified_evaluation.json")
+        nn_evaluation = load_json(folder_name, f"{model_name}_evaluation.json")
     except FileNotFoundError:
         return jsonify({"error": "Neural network evaluation file not found"}), 500
     except Exception as e:
