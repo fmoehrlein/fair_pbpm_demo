@@ -1,0 +1,27 @@
+.decision-node {
+    background: #F9F9F9;
+    border: solid 1px #777;
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 5px 10px;
+
+    color: rgba(0, 0, 0, .88);
+    font-size: 14px;
+
+    transition: background-color 100ms ease-out;
+}
+
+.decision-node:hover {
+    background: #EFEFEF;
+    transition: background-color 100ms ease-out;
+}
+
+.decision-node.selected {
+    background: #E0E0E0;
+    transition: background-color 100ms ease-out;
+}
+
+.decision-node.selected:hover {
+    background: #D0D0D0;
+    transition: background-color 100ms ease-out;
+}
