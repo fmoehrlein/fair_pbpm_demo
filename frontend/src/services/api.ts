@@ -125,13 +125,13 @@ export default class Api {
     }
 
     public cutNode = async (sessionId: string, params: CutNodeParams): Promise<ModifyResult | undefined> => {
-        const res = await this.genericAction(sessionId, "modify_cut", params);
+        const res = await this.genericAction(sessionId, "modify", params);
         if(res) return res as ModifyResult;
         return undefined;
     }
 
     public retrainNode = async (sessionId: string, params: RetrainNodeParams): Promise<ModifyResult | undefined> => {
-        const res = await this.genericAction(sessionId, "modify_retrain", params);
+        const res = await this.genericAction(sessionId, "modify", params);
         if(res) return res as ModifyResult;
         return undefined;
     }
