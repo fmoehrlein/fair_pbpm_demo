@@ -1,11 +1,11 @@
 import React, {ReactElement} from 'react';
-import {Button, Divider, Modal, notification, StepProps, Steps, Table, Tag} from "antd";
+import {Button, Divider, Modal, notification, Space, StepProps, Steps, Table, Tag} from "antd";
 import XesUpload from "./XesUpload";
 import useApi, {
     DistillParams,
     DistillResult,
     FineTuneParams,
-    Metrics,
+    FineTuneResult,
     TrainParams,
     TrainResult,
     UploadResult
@@ -23,13 +23,6 @@ interface Props {
     sessionId: string;
 }
 
-interface AlterationResults {
-    originalNNMetrics: Metrics;
-    modifiedNNMetrics: Metrics;
-    originalTreeMetrics: Metrics;
-    modifiedTreeMetrics: Metrics;
-}
-
 
 const Context = React.createContext({ name: 'AntDesignNotifications' });
 
@@ -43,7 +36,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
     const [working, setWorking] = React.useState(false);
 
     const [resultModalOpen, setResultModalOpen] = React.useState(false);
-    const [alterationResults, setAlterationResults] = React.useState<AlterationResults | undefined>(undefined);
+    const [fineTuneResults, setFineTuneResults] = React.useState<FineTuneResult | undefined>(undefined);
 
     const [xesFile, setXesFile] = React.useState<File | undefined>(undefined);
     const [trainParams, setTrainParams] = React.useState<TrainParams>({
@@ -60,6 +53,12 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         min_samples_split: 2,
         max_depth: 100,
         ccp_alpha: 0.001,
+        model_to_use: 'original'
+    });
+    const [fineDistillParams, setFineDistillParams] = React.useState<DistillParams>({
+        min_samples_split: 2,
+        max_depth: 100,
+        ccp_alpha: 0.001,
         model_to_use: 'latest'
     });
 
@@ -71,11 +70,14 @@ const ModelCreationSteps = ({sessionId}: Props) => {
 
     const [tree, setTree] = React.useState<DecisionTree | undefined>(undefined);
 
+    const TREE_VIEW = 6;
+    const DISTILL_RESULT_VIEW = 5;
+
     React.useEffect(() => {
         const load = async () => {
             const newTree = await api.fetchTree(sessionId);
             setTree(newTree);
-            setCurrent(6);
+            setCurrent(TREE_VIEW);
         }
 
         load();
@@ -117,7 +119,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         }
     }
 
-    const applyAlterations = async (ftParams: FineTuneParams, dParams: DistillParams) => {
+    const applyAlterations = async (ftParams: FineTuneParams) => {
         if (!sessionId) {
             throw new Error("Should not happen.")
         }
@@ -125,35 +127,39 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         setWorking(true);
         try {
             const fineTuneResults = await api.fineTune(sessionId, ftParams);
-            const distillResults = await api.distillTree(sessionId, dParams);
-            if (!fineTuneResults || !distillResults) {
+            if (!fineTuneResults) {
                 throw new Error("Should not happen.");
             }
-            setAlterationResults({
-                originalNNMetrics: fineTuneResults.nn_evaluation,
-                modifiedNNMetrics: fineTuneResults.nn_modified_evaluation,
-                originalTreeMetrics: fineTuneResults.dt_evaluation,
-                modifiedTreeMetrics: distillResults.dt_evaluation
-            });
-            const newTree = await api.fetchTree(sessionId);
-            setTree(newTree);
+            setFineTuneResults(fineTuneResults);
             setResultModalOpen(true);
         } finally {
             setWorking(false);
         }
     }
 
-    const keepNewModel = ( )=> {
-        setResultModalOpen(false);
+    const keepNewModel = async ()=> {
+        setWorking(true);
+        try {
+            await distill(fineDistillParams);
+            const newTree = await api.fetchTree(sessionId);
+            setTree(newTree);
+            setResultModalOpen(false);
+        } finally {
+            setWorking(false);
+        }
     }
 
-    const revertFineTune = () => {
-
+    const revertFineTune = async () => {
+        setWorking(true);
+        try {
+            await distill(distillParams);
+            const newTree = await api.fetchTree(sessionId);
+            setTree(newTree);
+            setResultModalOpen(false);
+        } finally {
+            setWorking(false);
+        }
     }
-
-    const distillationDataSource = [];
-    if (trainResult) distillationDataSource.push({model: "Neural Network", ...trainResult});
-    if (distillResult) distillationDataSource.push({model: "Decision Tree", ...distillResult});
 
     const steps: (StepProps & {content: ReactElement})[] = [
         {
@@ -228,7 +234,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
             content: (
                 <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
                     <DistillParamsInput value={distillParams} onChange={setDistillParams}/>
-                    <Button type={"primary"} onClick={() => distill()} loading={working}>
+                    <Button type={"primary"} onClick={() => distill(distillParams)} loading={working}>
                         Distill
                     </Button>
                 </div>
@@ -261,20 +267,23 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                         title={"Fine tuning results"}
                                         onCancel={() => setResultModalOpen(false)}
                                         onOk={() => setResultModalOpen(false)}
-
+                                        footer={(<Space direction={"horizontal"}>
+                                            Distill new decision tree?
+                                            <Button onClick={revertFineTune} danger type={"default"}>Revert</Button>
+                                            <Button onClick={keepNewModel} type={"primary"}>Confirm</Button>
+                                        </Space>)}
                                     >
-                                        {
-                                            <MetricsTable
-                                                data={
-                                                    alterationResults ? [
-                                                        {...alterationResults.originalNNMetrics, model: "Original Neural Network"},
-                                                        {...alterationResults.modifiedNNMetrics, model: "New Neural Network"},
-                                                        {...alterationResults.originalTreeMetrics, model: "Original Decision Tree"},
-                                                        {...alterationResults.modifiedTreeMetrics, model: "Modified Decision Tree"},
-                                                    ] : undefined
-                                                }
-                                            />
-                                        }
+                                        <MetricsTable
+                                            data={
+                                                fineTuneResults ? [
+                                                    {...fineTuneResults.nn_evaluation, model: "Original Neural Network"},
+                                                    {...fineTuneResults.nn_modified_evaluation, model: "New Neural Network"},
+                                                    {...fineTuneResults.dt_evaluation, model: "Original Decision Tree"},
+                                                ] : undefined
+                                            }
+                                        />
+                                        <h1>Distillation Parameters</h1>
+                                        <DistillParamsInput value={fineDistillParams} onChange={setFineDistillParams} />
                                     </Modal>
                                     <DecisionTreeDisplay
                                         data={tree}
@@ -299,7 +308,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                         selectedNode={selectedNode}
                                         onCutNode={cutNode}
                                         onRetrainNode={retrainNode}
-                                        onApplyAlterations={applyAlterations}
+                                        onFineTune={applyAlterations}
                                     />
                                 </>
                             )
@@ -338,13 +347,15 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         }
     }
 
-    const distill = async () => {
+    const distill = async (params: DistillParams) => {
         setWorking(true);
         try {
-            const distillResult = await api.distillTree(sessionId, distillParams);
+            const distillResult = await api.distillTree(sessionId, params);
             if(distillResult !== undefined) {
                 setDistillResult(distillResult);
-                next();
+                setCurrent(DISTILL_RESULT_VIEW);
+                const newTree = await api.fetchTree(sessionId);
+                setTree(newTree);
             }
         } finally {
             setWorking(false);
