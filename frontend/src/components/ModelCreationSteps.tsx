@@ -11,7 +11,7 @@ interface Props {
     onFinished: () => void;
 }
 
-const api = new Api("http://localhost:5000");
+const api = new Api("https://apps.pm.iisys.de");
 
 const ModelCreationSteps = ({onFinished, sessionId}: Props) => {
     const [current, setCurrent] = React.useState(0);

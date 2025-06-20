@@ -7,7 +7,7 @@ import ModelCreationSteps from "./components/ModelCreationSteps";
 import {LoadingOutlined} from "@ant-design/icons";
 
 
-const api = new Api("http://localhost:5000");
+const api = new Api("https://apps.pm.iisys.de");
 
 function App() {
     const [selectedNode, setSelectedNode] = React.useState<DecisionNode | undefined>(undefined);
