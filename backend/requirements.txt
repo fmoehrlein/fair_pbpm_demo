@@ -13,6 +13,7 @@ gast==0.6.0
 google-pasta==0.2.0
 graphviz==0.20.3
 grpcio==1.73.0
+gunicorn
 h5py==3.14.0
 idna==3.10
 intervaltree==3.1.0

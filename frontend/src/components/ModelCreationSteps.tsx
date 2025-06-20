@@ -30,7 +30,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
     const [notifications, contextHolder] = notification.useNotification();
     const contextValue = React.useMemo(() => ({ name: 'Ant Design' }), []);
 
-    const api = useApi("http://localhost:5000", notifications);
+    const api = useApi("https://apps.pm.iisys.de", notifications);
 
     const [current, setCurrent] = React.useState(0);
     const [working, setWorking] = React.useState(false);
