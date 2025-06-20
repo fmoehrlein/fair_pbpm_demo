@@ -1,6 +1,6 @@
 import React from "react";
 import {DecisionNode} from "../services/DecisionTree";
-import {Button, Form, InputNumber, Modal, Popconfirm, Select, Space} from "antd";
+import {Button, Modal, Space} from "antd";
 import {ArrowLeftOutlined, ArrowRightOutlined, BulbOutlined} from "@ant-design/icons";
 import {DistillParams, FineTuneParams} from "../services/api";
 import FineTuneParamsInput from "./FineTuneParamsInput";
@@ -12,14 +12,12 @@ interface Props {
     working: boolean;
     onRetrainNode: (node: DecisionNode) => void;
     onCutNode: (node: DecisionNode, mode: "auto" | "left" | "right") => void;
-    onFineTune: (params: FineTuneParams) => void;
-    onDistill: (params: DistillParams) => void;
+    onApplyAlterations: (fineTuneParams: FineTuneParams, distillParams: DistillParams) => void;
 }
 
-const Controls = ({selectedNode, onRetrainNode, onCutNode, onFineTune, onDistill, working}: Props) => {
+const Controls = ({selectedNode, onRetrainNode, onCutNode, onApplyAlterations, working}: Props) => {
     const [cutModalOpen, setCutModalOpen] = React.useState(false);
-    const [fineTuneModalOpen, setFineTuneModalOpen] = React.useState(false);
-    const [distillModalOpen, setDistillModalOpen] = React.useState(false);
+    const [modalOpen, setModalOpen] = React.useState(false);
 
     const [fineTuneParams, setFineTuneParams] = React.useState<FineTuneParams>({
         mode: 'changed_complete', learning_rate: 0.001, epoch: 5, batch_size: 32
@@ -106,39 +104,24 @@ const Controls = ({selectedNode, onRetrainNode, onCutNode, onFineTune, onDistill
 
             <div>
                 <Modal
-                    open={fineTuneModalOpen}
-                    title={"Fine Tuning Parameters"}
-                    onCancel={() => setFineTuneModalOpen(false)}
+                    open={modalOpen}
+                    title={"Parameters"}
+                    onCancel={() => setModalOpen(false)}
                     onOk={() => {
-                        onFineTune(fineTuneParams);
-                        setFineTuneModalOpen(false);
+                        onApplyAlterations(fineTuneParams, distillParams);
                     }}
                 >
+                    <h1>Fine Tuning Parameters</h1>
                     <FineTuneParamsInput value={fineTuneParams} onChange={setFineTuneParams} />
-                </Modal>
-                <Button
-                    type={"primary"}
-                    loading={working}
-                    onClick={() => setFineTuneModalOpen(true)}
-                >
-                    Fine Tune Model
-                </Button>
-            </div>
-
-            <div>
-                <Modal
-                    open={distillModalOpen}
-                    onCancel={() => setDistillModalOpen(false)}
-                    onOk={() => onDistill(distillParams)}
-                >
+                    <h1>Distillation Parameters</h1>
                     <DistillParamsInput value={distillParams} onChange={setDistillParams} />
                 </Modal>
                 <Button
                     type={"primary"}
                     loading={working}
-                    onClick={() => setDistillModalOpen(true)}
+                    onClick={() => setModalOpen(true)}
                 >
-                    Distill Tree
+                    Fine Tune Model
                 </Button>
             </div>
         </div>

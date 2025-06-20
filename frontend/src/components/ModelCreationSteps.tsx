@@ -1,10 +1,11 @@
 import React, {ReactElement} from 'react';
-import {Button, StepProps, Steps, StepsProps, Table, Tag} from "antd";
+import {Button, Modal, StepProps, Steps, Table, Tag} from "antd";
 import XesUpload from "./XesUpload";
 import Api, {
     DistillParams,
     DistillResult,
     FineTuneParams,
+    Metrics,
     TrainParams,
     TrainResult,
     UploadResult
@@ -15,10 +16,18 @@ import DecisionTree, {DecisionNode} from "../services/DecisionTree";
 import DecisionTreeDisplay from "./DecisionTreeDisplay";
 import Controls from "./Controls";
 import {LoadingOutlined} from "@ant-design/icons";
+import MetricsTable from "./MetricsTable";
 
 
 interface Props {
     sessionId: string;
+}
+
+interface AlterationResults {
+    originalNNMetrics: Metrics;
+    modifiedNNMetrics: Metrics;
+    originalTreeMetrics: Metrics;
+    modifiedTreeMetrics: Metrics;
 }
 
 const api = new Api("http://localhost:5000");
@@ -26,6 +35,9 @@ const api = new Api("http://localhost:5000");
 const ModelCreationSteps = ({sessionId}: Props) => {
     const [current, setCurrent] = React.useState(0);
     const [working, setWorking] = React.useState(false);
+
+    const [resultModalOpen, setResultModalOpen] = React.useState(false);
+    const [alterationResults, setAlterationResults] = React.useState<AlterationResults | undefined>(undefined);
 
     const [xesFile, setXesFile] = React.useState<File | undefined>(undefined);
     const [trainParams, setTrainParams] = React.useState<TrainParams>({
@@ -98,29 +110,28 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         }
     }
 
-    const fineTune = async (params: FineTuneParams) => {
+    const applyAlterations = async (ftParams: FineTuneParams, dParams: DistillParams) => {
         if (!sessionId) {
             throw new Error("Should not happen.")
         }
 
         setWorking(true);
         try {
-            await api.fineTune(sessionId, params);
-        } finally {
-            setWorking(false);
-        }
-    }
-
-    const startDistill = async (params: DistillParams) => {
-        if (!sessionId) {
-            throw new Error("Should not happen.")
-        }
-
-        setWorking(true);
-        try {
-            await api.distillTree(sessionId, params);
+            const fineTuneResults = await api.fineTune(sessionId, ftParams);
+            const distillResults = await api.distillTree(sessionId, dParams);
+            if (!fineTuneResults || !distillResults) {
+                throw new Error("Should not happen.");
+            }
+            setAlterationResults({
+                originalNNMetrics: fineTuneResults.nn_evaluation,
+                modifiedNNMetrics: fineTuneResults.nn_modified_evaluation,
+                originalTreeMetrics: fineTuneResults.dt_evaluation,
+                modifiedTreeMetrics: distillResults.dt_evaluation
+            })
             const newTree = await api.fetchTree(sessionId);
             setTree(newTree);
+            setResultModalOpen(true);
+
         } finally {
             setWorking(false);
         }
@@ -182,31 +193,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
             title: "Training Results",
             content: (
                 <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
-                    <Table
-                        columns={[
-                            {
-                                title: "Accuracy",
-                                dataIndex: "accuracy",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                            {
-                                title: "F1",
-                                dataIndex: "f1_score",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                            {
-                                title: "Precision",
-                                dataIndex: "precision",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                            {
-                                title: "Recall",
-                                dataIndex: "recall",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                        ]}
-                        dataSource={trainResult ? [trainResult] : undefined}
-                    />
+                    <MetricsTable data={trainResult? [{...trainResult.nn_evaluation, model: "Neural Network"}]: undefined} />
                     <Button onClick={next} type={"primary"}>Next</Button>
                 </div>
             ),
@@ -225,31 +212,13 @@ const ModelCreationSteps = ({sessionId}: Props) => {
             title: "Distillation Results",
             content: (
                 <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
-                    <Table
-                        columns={[
-                            {title: "Model", dataIndex: "model"},
-                            {
-                                title: "Accuracy",
-                                dataIndex: "accuracy",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                            {
-                                title: "F1",
-                                dataIndex: "f1_score",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                            {
-                                title: "Precision",
-                                dataIndex: "precision",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                            {
-                                title: "Recall",
-                                dataIndex: "recall",
-                                render: (value: number) => (value * 100).toFixed(2) + "%"
-                            },
-                        ]}
-                        dataSource={distillationDataSource}
+                    <MetricsTable
+                        data={
+                            distillResult ? [
+                                {...distillResult.nn_evaluation, model: "Neural Network"},
+                                {...distillResult.dt_evaluation, model: "Decision Tree"}
+                            ]: undefined
+                        }
                     />
                     <Button onClick={next} type={"primary"}>Next</Button>
                 </div>
@@ -262,6 +231,24 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                     {
                         tree ? (
                                 <>
+                                    <Modal
+                                        open={resultModalOpen}
+                                        onCancel={() => setResultModalOpen(false)}
+                                        onOk={() => setResultModalOpen(false)}
+                                    >
+                                        {
+                                            <MetricsTable
+                                                data={
+                                                    alterationResults ? [
+                                                        {...alterationResults.originalNNMetrics, model: "Original Neural Network"},
+                                                        {...alterationResults.modifiedNNMetrics, model: "New Neural Network"},
+                                                        {...alterationResults.originalTreeMetrics, model: "Original Decision Tree"},
+                                                        {...alterationResults.modifiedTreeMetrics, model: "Modified Decision Tree"},
+                                                    ] : undefined
+                                                }
+                                            />
+                                        }
+                                    </Modal>
                                     <DecisionTreeDisplay
                                         data={tree}
                                         onNodeClicked={(n) => n === selectedNode ? setSelectedNode(undefined) : setSelectedNode(n)}
@@ -273,8 +260,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                         selectedNode={selectedNode}
                                         onCutNode={cutNode}
                                         onRetrainNode={retrainNode}
-                                        onFineTune={fineTune}
-                                        onDistill={startDistill}
+                                        onApplyAlterations={applyAlterations}
                                     />
                                 </>
                             )
