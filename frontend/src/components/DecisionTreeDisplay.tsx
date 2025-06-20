@@ -11,6 +11,8 @@ interface Props {
     data: DecisionTree;
     selectedNode?: DecisionNode;
     onNodeClicked?: (node: DecisionNode) => void;
+    onNodeCut: (node: DecisionNode, mode: 'left' | 'auto' | 'right') => void;
+    onNodeRetrain: (node: DecisionNode) => void;
     onBackgroundClicked?: () => void;
 }
 
@@ -44,7 +46,10 @@ const DecisionTreeDisplay = (props: Props) => {
             data: {
                 label: renderNodeLabel(root),
                 onClick: () => props.onNodeClicked?.(root),
-                selected: root.node_id === props.selectedNode?.node_id
+                selected: root.node_id === props.selectedNode?.node_id,
+                node: root,
+                onCutNode: props.onNodeCut,
+                onRetrainNode: props.onNodeRetrain,
             },
             type: "decision-node"
         }];
@@ -94,7 +99,6 @@ const DecisionTreeDisplay = (props: Props) => {
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     React.useEffect(() => {
-        console.log("building tree")
         setNodes(getNodes(props.data.root, {x: 0, y: 0}, {x: 40, y: 100}));
         setEdges(getEdges(props.data.root));
     }, [props.data, props.selectedNode, props.onNodeClicked]);
