@@ -269,8 +269,12 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                         onOk={() => setResultModalOpen(false)}
                                         footer={(<Space direction={"horizontal"}>
                                             Distill new decision tree?
-                                            <Button onClick={revertFineTune} danger type={"default"}>Revert</Button>
-                                            <Button onClick={keepNewModel} type={"primary"}>Confirm</Button>
+                                            <Button onClick={revertFineTune} danger type={"default"} loading={working}>
+                                                Revert
+                                            </Button>
+                                            <Button onClick={keepNewModel} type={"primary"} loading={working}>
+                                                Confirm
+                                            </Button>
                                         </Space>)}
                                     >
                                         <MetricsTable
