@@ -23,6 +23,7 @@ export interface DistillParams {
     min_samples_split: number;
     max_depth: number;
     ccp_alpha: number;
+    model_to_use: 'original' | 'latest';
 }
 
 export interface RetrainNodeParams {

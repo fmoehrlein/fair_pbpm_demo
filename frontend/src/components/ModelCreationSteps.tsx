@@ -53,7 +53,8 @@ const ModelCreationSteps = ({sessionId}: Props) => {
     const [distillParams, setDistillParams] = React.useState<DistillParams>({
         min_samples_split: 2,
         max_depth: 100,
-        ccp_alpha: 0.001
+        ccp_alpha: 0.001,
+        model_to_use: 'latest'
     });
 
     const [trainResult, setTrainResult] = React.useState<TrainResult | undefined>(undefined);
