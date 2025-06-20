@@ -14,7 +14,7 @@ import TrainParamsInput from "./TrainParamsInput";
 import DistillParamsInput from "./DistillParamsInput";
 import DecisionTree, {DecisionNode} from "../services/DecisionTree";
 import DecisionTreeDisplay from "./DecisionTreeDisplay";
-import Controls from "./Controls";
+import AlterationControls from "./AlterationControls";
 import {LoadingOutlined} from "@ant-design/icons";
 import MetricsTable from "./MetricsTable";
 
@@ -252,11 +252,19 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                     </Modal>
                                     <DecisionTreeDisplay
                                         data={tree}
-                                        onNodeClicked={(n) => n === selectedNode ? setSelectedNode(undefined) : setSelectedNode(n)}
-                                        onBackgroundClicked={() => setSelectedNode(undefined)}
+                                        onNodeClicked={(n) => {
+                                            n === selectedNode ? setSelectedNode(undefined) : setSelectedNode(n);
+                                            console.log("node clicked")
+                                        }}
+                                        onBackgroundClicked={() => {
+                                            setSelectedNode(undefined);
+                                            console.log("background clicked")
+                                        }}
                                         selectedNode={selectedNode}
+                                        onNodeCut={cutNode}
+                                        onNodeRetrain={retrainNode}
                                     />
-                                    <Controls
+                                    <AlterationControls
                                         working={working}
                                         selectedNode={selectedNode}
                                         onCutNode={cutNode}
