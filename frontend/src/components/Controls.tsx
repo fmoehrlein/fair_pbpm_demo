@@ -42,7 +42,7 @@ const Controls = ({selectedNode, onRetrainNode, onCutNode, onFineTune, onDistill
     return (
         <div style={{
             position: 'absolute',
-            right: 5, top: 5,
+            right: 15, top: 100,
             width: 175,
             background: 'white',
             border: 'solid 1px black',

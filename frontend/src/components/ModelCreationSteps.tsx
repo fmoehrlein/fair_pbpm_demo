@@ -1,19 +1,29 @@
-import React from 'react';
-import {Badge, Button, Empty, Steps, Table, Tag} from "antd";
+import React, {ReactElement} from 'react';
+import {Button, StepProps, Steps, StepsProps, Table, Tag} from "antd";
 import XesUpload from "./XesUpload";
-import Api, {DistillParams, DistillResult, TrainParams, TrainResult, UploadResult} from "../services/api";
+import Api, {
+    DistillParams,
+    DistillResult,
+    FineTuneParams,
+    TrainParams,
+    TrainResult,
+    UploadResult
+} from "../services/api";
 import TrainParamsInput from "./TrainParamsInput";
 import DistillParamsInput from "./DistillParamsInput";
+import DecisionTree, {DecisionNode} from "../services/DecisionTree";
+import DecisionTreeDisplay from "./DecisionTreeDisplay";
+import Controls from "./Controls";
+import {LoadingOutlined} from "@ant-design/icons";
 
 
 interface Props {
     sessionId: string;
-    onFinished: () => void;
 }
 
 const api = new Api("http://localhost:5000");
 
-const ModelCreationSteps = ({onFinished, sessionId}: Props) => {
+const ModelCreationSteps = ({sessionId}: Props) => {
     const [current, setCurrent] = React.useState(0);
     const [working, setWorking] = React.useState(false);
 
@@ -29,29 +39,103 @@ const ModelCreationSteps = ({onFinished, sessionId}: Props) => {
         hidden_units: [512, 256, 128, 64, 32]
     });
     const [distillParams, setDistillParams] = React.useState<DistillParams>({
-        min_samples_split:2,
-        max_depth:100,
-        ccp_alpha:0.001
+        min_samples_split: 2,
+        max_depth: 100,
+        ccp_alpha: 0.001
     });
 
     const [trainResult, setTrainResult] = React.useState<TrainResult | undefined>(undefined);
     const [distillResult, setDistillResult] = React.useState<DistillResult | undefined>(undefined);
     const [uploadResult, setUploadResult] = React.useState<UploadResult | undefined>(undefined);
 
+    const [selectedNode, setSelectedNode] = React.useState<DecisionNode | undefined>(undefined);
+
+    const [tree, setTree] = React.useState<DecisionTree | undefined>(undefined);
+
+    React.useEffect(() => {
+        const load = async () => {
+            const newTree = await api.fetchTree(sessionId);
+            setTree(newTree);
+            setCurrent(6);
+        }
+
+        load();
+    }, []);
+
     const next = () => {
         setCurrent(current + 1);
     }
 
-    const distillationDataSource = [];
-    if(trainResult) distillationDataSource.push({model: "Neural Network", ...trainResult});
-    if(distillResult) distillationDataSource.push({model: "Decision Tree", ...distillResult});
+    const cutNode = async (node: DecisionNode, keep: "left" | "right" | "auto") => {
+        if (!sessionId) {
+            throw new Error("Should not happen.")
+        }
 
-    const steps = [
+        setWorking(true);
+        try {
+            await api.cutNode(sessionId, {node_id: node.node_id, direction: keep});
+            const newTree = await api.fetchTree(sessionId);
+            setTree(newTree);
+        } finally {
+            setSelectedNode(undefined);
+            setWorking(false);
+        }
+    }
+
+    const retrainNode = async (node: DecisionNode) => {
+        if (!sessionId) {
+            throw new Error("Should not happen.")
+        }
+
+        setWorking(true);
+        try {
+            await api.retrainNode(sessionId, {node_id: node.node_id});
+            const newTree = await api.fetchTree(sessionId);
+            setTree(newTree);
+        } finally {
+            setSelectedNode(undefined);
+            setWorking(false);
+        }
+    }
+
+    const fineTune = async (params: FineTuneParams) => {
+        if (!sessionId) {
+            throw new Error("Should not happen.")
+        }
+
+        setWorking(true);
+        try {
+            await api.fineTune(sessionId, params);
+        } finally {
+            setWorking(false);
+        }
+    }
+
+    const startDistill = async (params: DistillParams) => {
+        if (!sessionId) {
+            throw new Error("Should not happen.")
+        }
+
+        setWorking(true);
+        try {
+            await api.distillTree(sessionId, params);
+            const newTree = await api.fetchTree(sessionId);
+            setTree(newTree);
+        } finally {
+            setWorking(false);
+        }
+    }
+
+    const distillationDataSource = [];
+    if (trainResult) distillationDataSource.push({model: "Neural Network", ...trainResult});
+    if (distillResult) distillationDataSource.push({model: "Decision Tree", ...distillResult});
+
+    const steps: (StepProps & {content: ReactElement})[] = [
         {
             title: "Upload",
             content: (
-                <>
-                    <XesUpload onFileSelected={setXesFile} />
+                <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
+                    <XesUpload onFileSelected={setXesFile}/>
                     <div>
                         <Button
                             type={"primary"}
@@ -62,15 +146,19 @@ const ModelCreationSteps = ({onFinished, sessionId}: Props) => {
                             Upload
                         </Button>
                     </div>
-                </>
-            )
+                </div>
+            ),
         }, {
             title: "Event Log Statistics",
             content: (
-                <>
+                <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
                     <Table
                         columns={[
-                            {title: "Attributes", dataIndex: "attributes", render: (value: string[]) => value.map(v => <Tag>{v}</Tag>)},
+                            {
+                                title: "Attributes",
+                                dataIndex: "attributes",
+                                render: (value: string[]) => value.map(v => <Tag>{v}</Tag>)
+                            },
                             {title: "avg. Events / Case", dataIndex: "events_per_case"},
                             {title: "Cases", dataIndex: "num_cases"},
                             {title: "Events", dataIndex: "num_events"},
@@ -79,64 +167,128 @@ const ModelCreationSteps = ({onFinished, sessionId}: Props) => {
                         pagination={false}
                     />
                     <Button onClick={next} type={"primary"}>Next</Button>
-                </>
-            )
+                </div>
+            ),
+            disabled: uploadResult === undefined
         }, {
             title: "Train",
             content: (
                 <>
-                    <TrainParamsInput value={trainParams} onChange={setTrainParams} />
+                    <TrainParamsInput value={trainParams} onChange={setTrainParams}/>
                     <Button type={"primary"} onClick={() => train()} loading={working}>Train</Button>
                 </>
             )
         }, {
             title: "Training Results",
             content: (
-                <>
+                <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
                     <Table
                         columns={[
-                            {title: "Accuracy", dataIndex: "accuracy", render: (value: number) => (value * 100).toFixed(2) + "%"},
-                            {title: "F1", dataIndex: "f1_score", render: (value: number) => (value * 100).toFixed(2) + "%"},
-                            {title: "Precision", dataIndex: "precision", render: (value: number) => (value * 100).toFixed(2) + "%"},
-                            {title: "Recall", dataIndex: "recall", render: (value: number) => (value * 100).toFixed(2) + "%"},
+                            {
+                                title: "Accuracy",
+                                dataIndex: "accuracy",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
+                            {
+                                title: "F1",
+                                dataIndex: "f1_score",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
+                            {
+                                title: "Precision",
+                                dataIndex: "precision",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
+                            {
+                                title: "Recall",
+                                dataIndex: "recall",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
                         ]}
-                        dataSource={trainResult ? [trainResult]: undefined}
+                        dataSource={trainResult ? [trainResult] : undefined}
                     />
                     <Button onClick={next} type={"primary"}>Next</Button>
-                </>
-            )
+                </div>
+            ),
+            disabled: trainResult === undefined
         }, {
             title: "Distill",
             content: (
-                <>
-                    <DistillParamsInput value={distillParams} onChange={setDistillParams} />
+                <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
+                    <DistillParamsInput value={distillParams} onChange={setDistillParams}/>
                     <Button type={"primary"} onClick={() => distill()} loading={working}>
                         Distill
                     </Button>
-                </>
+                </div>
             )
         }, {
             title: "Distillation Results",
             content: (
-                <>
+                <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
                     <Table
                         columns={[
                             {title: "Model", dataIndex: "model"},
-                            {title: "Accuracy", dataIndex: "accuracy", render: (value: number) => (value * 100).toFixed(2) + "%"},
-                            {title: "F1", dataIndex: "f1_score", render: (value: number) => (value * 100).toFixed(2) + "%"},
-                            {title: "Precision", dataIndex: "precision", render: (value: number) => (value * 100).toFixed(2) + "%"},
-                            {title: "Recall", dataIndex: "recall", render: (value: number) => (value * 100).toFixed(2) + "%"},
+                            {
+                                title: "Accuracy",
+                                dataIndex: "accuracy",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
+                            {
+                                title: "F1",
+                                dataIndex: "f1_score",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
+                            {
+                                title: "Precision",
+                                dataIndex: "precision",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
+                            {
+                                title: "Recall",
+                                dataIndex: "recall",
+                                render: (value: number) => (value * 100).toFixed(2) + "%"
+                            },
                         ]}
                         dataSource={distillationDataSource}
                     />
-                    <Button onClick={onFinished} type={"primary"}>Next</Button>
-                </>
-            )
+                    <Button onClick={next} type={"primary"}>Next</Button>
+                </div>
+            ),
+            disabled: distillResult === undefined
+        }, {
+            title: "Alterations",
+            content: (
+                <div style={{width: "100%", height: "100%"}}>
+                    {
+                        tree ? (
+                                <>
+                                    <DecisionTreeDisplay
+                                        data={tree}
+                                        onNodeClicked={(n) => n === selectedNode ? setSelectedNode(undefined) : setSelectedNode(n)}
+                                        onBackgroundClicked={() => setSelectedNode(undefined)}
+                                        selectedNode={selectedNode}
+                                    />
+                                    <Controls
+                                        working={working}
+                                        selectedNode={selectedNode}
+                                        onCutNode={cutNode}
+                                        onRetrainNode={retrainNode}
+                                        onFineTune={fineTune}
+                                        onDistill={startDistill}
+                                    />
+                                </>
+                            )
+                            :
+                            <LoadingOutlined/>
+                    }
+                </div>
+            ),
+            disabled: tree === undefined
         }
     ];
 
     const upload = async () => {
-        if(!xesFile) throw new Error("Cant start without xes file, should not happen, since button is disabled.");
+        if (!xesFile) throw new Error("Cant start without xes file, should not happen, since button is disabled.");
 
         setWorking(true);
         try {
@@ -171,15 +323,19 @@ const ModelCreationSteps = ({onFinished, sessionId}: Props) => {
     }
 
     return (
-        <>
+        <div style={{width: "100%", height: "100%"}}>
             <Steps
                 items={steps.map(s => ({key: s.title, title: s.title}))}
                 current={current}
+                onChange={(requestedCurrent) => {
+                    setCurrent(requestedCurrent);
+
+                }}
             />
-            <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
+            <div style={{width: "100%", height: "calc(100% - 32px)"}}>
                 {steps[current].content}
             </div>
-        </>
+        </div>
     );
 }
 
