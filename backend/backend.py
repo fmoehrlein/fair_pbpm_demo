@@ -27,28 +27,36 @@ def hello_world():
 @app.route("/api/load_xes", methods=["POST"])
 def load_xes():
     if "file" not in request.files:
-        return jsonify({"error": "No file part in the request"}), 400
-    if "folder_name" not in request.form:
-        return jsonify({"error": "Missing folder_name in the request"}), 400
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No selected file"}), 400
+        file_path = os.path.join("data", "cancer_screening.xes")
+        try:
+            df = load_xes_to_df("event_log.xes", "cs")
+        except FileNotFoundError:
+            return jsonify({"error": "File not found for processing"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Error loading XES file: {str(e)}"}), 500
+    else:
+        if "folder_name" not in request.form:
+            return jsonify({"error": "Missing folder_name in the request"}), 400
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No selected file"}), 400
 
-    folder_name = request.form["folder_name"]
-    try:
-        save_path = os.path.join("data", folder_name)
-        os.makedirs(save_path, exist_ok=True)
-        file_path = os.path.join(save_path, "event_log.xes")
-        file.save(file_path)
-    except Exception as e:
-        return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
+        folder_name = request.form["folder_name"]
+        try:
+            save_path = os.path.join("data", folder_name)
+            os.makedirs(save_path, exist_ok=True)
+            file_path = os.path.join(save_path, "event_log.xes")
+            file.save(file_path)
+            print("File saved!")
+        except Exception as e:
+            return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
 
-    try:
-        df = load_xes_to_df("event_log.xes", folder_name)
-    except FileNotFoundError:
-        return jsonify({"error": "Saved file not found for processing"}), 500
-    except Exception as e:
-        return jsonify({"error": f"Error loading XES file: {str(e)}"}), 500
+        try:
+            df = load_xes_to_df("event_log.xes", folder_name)
+        except FileNotFoundError:
+            return jsonify({"error": "Saved file not found for processing"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Error loading XES file: {str(e)}"}), 500
     
     try:
         columns = df.columns.tolist()
