@@ -2,7 +2,6 @@
     background: #F9F9F9;
     border: solid 1px #777;
     border-radius: 5px;
-    cursor: pointer;
     padding: 5px 10px;
 
     color: rgba(0, 0, 0, .88);
@@ -13,7 +12,16 @@
     transition-timing-function: ease-out;
 }
 
-.decision-node:hover {
+.decision-node.leaf {
+    background: #DEDEDE;
+    color: rgba(0, 0, 0, .6);
+}
+
+.decision-node:not(.leaf) {
+    cursor: pointer;
+}
+
+.decision-node:not(.leaf):not(.selected):hover {
     background: #EFEFEF;
 
     transition-property: background, color, background-color, width, height;
@@ -22,15 +30,7 @@
 }
 
 .decision-node.selected {
-    background: #E0E0E0;
-
-    transition-property: background, color, background-color, width, height;
-    transition-duration: 100ms;
-    transition-timing-function: ease-out;
-}
-
-.decision-node.selected:hover {
-    background: #D0D0D0;
+    background: #EFEFEF;
 
     transition-property: background, color, background-color, width, height;
     transition-duration: 100ms;

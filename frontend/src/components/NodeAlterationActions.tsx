@@ -29,7 +29,7 @@ const NodeAlterationActions = ({node, working, onCutNode, onRetrainNode}: Props)
                 <Button
                     loading={working}
                     disabled={!node}
-                    type={"primary"}
+                    type={"default"}
                     onClick={(e) => {
                         e.stopPropagation();
                         onRetrainNode(node as DecisionNode);
@@ -53,7 +53,7 @@ const NodeAlterationActions = ({node, working, onCutNode, onRetrainNode}: Props)
                 </Modal>
                 <Button
                     disabled={!node}
-                    type={"primary"}
+                    type={"default"}
                     loading={working}
                     onClick={(e) => {
                         e.stopPropagation();

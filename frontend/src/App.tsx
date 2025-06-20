@@ -1,10 +1,7 @@
 import React from 'react';
-import Api from "./services/api";
 import ModelCreationSteps from "./components/ModelCreationSteps";
 import {LoadingOutlined} from "@ant-design/icons";
 
-
-const api = new Api("http://localhost:5000");
 
 function App() {
     const [user, setUser] = React.useState<string | null>(null);

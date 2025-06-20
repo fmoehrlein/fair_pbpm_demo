@@ -1,4 +1,4 @@
-import {FineTuneParams} from "../services/api";
+import {FineTuneParams} from "../services/useApi";
 import {Form, InputNumber, Select} from "antd";
 import React from "react";
 

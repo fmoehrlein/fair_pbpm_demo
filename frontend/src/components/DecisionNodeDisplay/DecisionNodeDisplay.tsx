@@ -3,7 +3,6 @@ import {Handle, Position} from "@xyflow/react";
 
 import './DecisionNodeDisplay.css';
 import {DecisionNode} from "../../services/DecisionTree";
-import AlterationControls from "../AlterationControls";
 import NodeAlterationActions from "../NodeAlterationActions";
 import {Space} from "antd";
 
@@ -33,9 +32,10 @@ const DecisionNodeDisplay = (props: Props) => {
         );
     }
 
+    const isLeaf = props.data.node.left === null && props.data.node.right === null;
     return (
         <div
-            className={`decision-node ${props.data.selected? 'selected' : ''}`}
+            className={`decision-node ${props.data.selected? 'selected' : ''} ${isLeaf ? 'leaf': ''}`}
             onClick={props.data.onClick}
         >
             <Space direction={"vertical"}>

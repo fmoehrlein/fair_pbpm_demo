@@ -1,7 +1,7 @@
 import React, {ReactElement} from 'react';
-import {Button, Modal, StepProps, Steps, Table, Tag} from "antd";
+import {Button, Divider, Modal, notification, StepProps, Steps, Table, Tag} from "antd";
 import XesUpload from "./XesUpload";
-import Api, {
+import useApi, {
     DistillParams,
     DistillResult,
     FineTuneParams,
@@ -9,12 +9,12 @@ import Api, {
     TrainParams,
     TrainResult,
     UploadResult
-} from "../services/api";
+} from "../services/useApi";
 import TrainParamsInput from "./TrainParamsInput";
 import DistillParamsInput from "./DistillParamsInput";
 import DecisionTree, {DecisionNode} from "../services/DecisionTree";
 import DecisionTreeDisplay from "./DecisionTreeDisplay";
-import AlterationControls from "./AlterationControls";
+import FineTuneControls from "./FineTuneControls";
 import {LoadingOutlined} from "@ant-design/icons";
 import MetricsTable from "./MetricsTable";
 
@@ -30,9 +30,15 @@ interface AlterationResults {
     modifiedTreeMetrics: Metrics;
 }
 
-const api = new Api("http://localhost:5000");
+
+const Context = React.createContext({ name: 'AntDesignNotifications' });
 
 const ModelCreationSteps = ({sessionId}: Props) => {
+    const [notifications, contextHolder] = notification.useNotification();
+    const contextValue = React.useMemo(() => ({ name: 'Ant Design' }), []);
+
+    const api = useApi("http://localhost:5000", notifications);
+
     const [current, setCurrent] = React.useState(0);
     const [working, setWorking] = React.useState(false);
 
@@ -128,14 +134,21 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                 modifiedNNMetrics: fineTuneResults.nn_modified_evaluation,
                 originalTreeMetrics: fineTuneResults.dt_evaluation,
                 modifiedTreeMetrics: distillResults.dt_evaluation
-            })
+            });
             const newTree = await api.fetchTree(sessionId);
             setTree(newTree);
             setResultModalOpen(true);
-
         } finally {
             setWorking(false);
         }
+    }
+
+    const keepNewModel = ( )=> {
+        setResultModalOpen(false);
+    }
+
+    const revertFineTune = () => {
+
     }
 
     const distillationDataSource = [];
@@ -147,8 +160,9 @@ const ModelCreationSteps = ({sessionId}: Props) => {
             title: "Upload",
             content: (
                 <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
+                    <Divider>Upload an event log in .xes format...</Divider>
                     <XesUpload onFileSelected={setXesFile}/>
-                    <div>
+                    <div style={{textAlign: "center"}}>
                         <Button
                             type={"primary"}
                             disabled={!xesFile}
@@ -156,6 +170,16 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                             loading={working}
                         >
                             Upload
+                        </Button>
+                    </div>
+                    <Divider>... or use our example from the paper</Divider>
+                    <div style={{textAlign: "center"}}>
+                        <Button
+                            type={"primary"}
+                            onClick={() => upload()}
+                            loading={working}
+                        >
+                            Use Cancer Screening Example
                         </Button>
                     </div>
                 </div>
@@ -169,7 +193,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                             {
                                 title: "Attributes",
                                 dataIndex: "attributes",
-                                render: (value: string[]) => value.map(v => <Tag>{v}</Tag>)
+                                render: (value: string[]) => value?.map(v => <Tag>{v}</Tag>)
                             },
                             {title: "avg. Events / Case", dataIndex: "events_per_case"},
                             {title: "Cases", dataIndex: "num_cases"},
@@ -185,10 +209,10 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         }, {
             title: "Train",
             content: (
-                <>
+                <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
                     <TrainParamsInput value={trainParams} onChange={setTrainParams}/>
                     <Button type={"primary"} onClick={() => train()} loading={working}>Train</Button>
-                </>
+                </div>
             )
         }, {
             title: "Training Results",
@@ -234,8 +258,10 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                 <>
                                     <Modal
                                         open={resultModalOpen}
+                                        title={"Fine tuning results"}
                                         onCancel={() => setResultModalOpen(false)}
                                         onOk={() => setResultModalOpen(false)}
+
                                     >
                                         {
                                             <MetricsTable
@@ -253,18 +279,22 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                     <DecisionTreeDisplay
                                         data={tree}
                                         onNodeClicked={(n) => {
-                                            n === selectedNode ? setSelectedNode(undefined) : setSelectedNode(n);
-                                            console.log("node clicked")
+                                            if (n === selectedNode) {
+                                                setSelectedNode(undefined);
+                                            } else if (n.right === null && n.left === null) {
+                                                setSelectedNode(undefined);
+                                            } else {
+                                                setSelectedNode(n);
+                                            }
                                         }}
                                         onBackgroundClicked={() => {
                                             setSelectedNode(undefined);
-                                            console.log("background clicked")
                                         }}
                                         selectedNode={selectedNode}
                                         onNodeCut={cutNode}
                                         onNodeRetrain={retrainNode}
                                     />
-                                    <AlterationControls
+                                    <FineTuneControls
                                         working={working}
                                         selectedNode={selectedNode}
                                         onCutNode={cutNode}
@@ -283,13 +313,13 @@ const ModelCreationSteps = ({sessionId}: Props) => {
     ];
 
     const upload = async () => {
-        if (!xesFile) throw new Error("Cant start without xes file, should not happen, since button is disabled.");
-
         setWorking(true);
         try {
             const result = await api.uploadXes(sessionId, xesFile);
-            setUploadResult(result);
-            next();
+            if(result !== undefined) {
+                setUploadResult(result);
+                next();
+            }
         } finally {
             setWorking(false);
         }
@@ -299,8 +329,10 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         setWorking(true);
         try {
             const result = await api.trainModel(sessionId, trainParams);
-            setTrainResult(result);
-            next();
+            if(result !== undefined) {
+                setTrainResult(result);
+                next();
+            }
         } finally {
             setWorking(false);
         }
@@ -310,27 +342,31 @@ const ModelCreationSteps = ({sessionId}: Props) => {
         setWorking(true);
         try {
             const distillResult = await api.distillTree(sessionId, distillParams);
-            setDistillResult(distillResult);
-            next();
+            if(distillResult !== undefined) {
+                setDistillResult(distillResult);
+                next();
+            }
         } finally {
             setWorking(false);
         }
     }
 
     return (
-        <div style={{width: "100%", height: "100%"}}>
-            <Steps
-                items={steps.map(s => ({key: s.title, title: s.title}))}
-                current={current}
-                onChange={(requestedCurrent) => {
-                    setCurrent(requestedCurrent);
-
-                }}
-            />
-            <div style={{width: "100%", height: "calc(100% - 32px)"}}>
-                {steps[current].content}
+        <Context.Provider value={contextValue}>
+            <div style={{width: "100%", height: "100%"}}>
+                {contextHolder}
+                <Steps
+                    items={steps.map(s => ({key: s.title, title: s.title}))}
+                    current={current}
+                    onChange={(requestedCurrent) => {
+                        setCurrent(requestedCurrent);
+                    }}
+                />
+                <div style={{width: "100%", height: "calc(100% - 32px)"}}>
+                    {steps[current].content}
+                </div>
             </div>
-        </div>
+        </Context.Provider>
     );
 }
 

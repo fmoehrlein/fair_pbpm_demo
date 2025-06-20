@@ -1,7 +1,7 @@
 import React from "react";
 import {DecisionNode} from "../services/DecisionTree";
-import {Button, Modal} from "antd";
-import {DistillParams, FineTuneParams} from "../services/api";
+import {Button, Modal, Space} from "antd";
+import {DistillParams, FineTuneParams} from "../services/useApi";
 import FineTuneParamsInput from "./FineTuneParamsInput";
 import DistillParamsInput from "./DistillParamsInput";
 
@@ -14,7 +14,7 @@ interface Props {
     onApplyAlterations: (fineTuneParams: FineTuneParams, distillParams: DistillParams) => void;
 }
 
-const AlterationControls = ({onApplyAlterations, working}: Props) => {
+const FineTuneControls = ({onApplyAlterations, working}: Props) => {
 
     const [modalOpen, setModalOpen] = React.useState(false);
 
@@ -29,12 +29,15 @@ const AlterationControls = ({onApplyAlterations, working}: Props) => {
     });
 
     return (
-        <>
+        <Space direction={"vertical"} style={{position: "absolute", top: 250, right: 15, transform: "translateX(-50%)", textAlign: "center", border: "solid 1px #888", borderRadius: 5, padding: 15, background: "#FFFA"}}>
+            <div style={{fontWeight: "bold", fontSize: "1.1em"}}>Controls</div>
+            <div style={{maxWidth: 150}}>Apply decision tree modifications and fine tune neural network</div>
             <Modal
                 open={modalOpen}
                 title={"Parameters"}
                 onCancel={() => setModalOpen(false)}
                 onOk={() => {
+                    setModalOpen(false);
                     onApplyAlterations(fineTuneParams, distillParams);
                 }}
             >
@@ -46,12 +49,12 @@ const AlterationControls = ({onApplyAlterations, working}: Props) => {
             <Button
                 type={"primary"}
                 loading={working}
-                onClick={() => setModalOpen(false)}
+                onClick={() => setModalOpen(true)}
             >
                 Fine Tune Model
             </Button>
-        </>
+        </Space>
     );
 }
 
-export default AlterationControls;
+export default FineTuneControls;
