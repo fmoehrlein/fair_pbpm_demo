@@ -13,6 +13,9 @@ from cleanup import start_cleanup_thread
 app = Flask(__name__)
 CORS(app)
 
+@app.before_request
+def log_method_path():
+    print(f"{request.method} {request.path}")
 
 @app.route("/api/hello_world", methods=["POST"])
 def hello_world():
@@ -435,4 +438,4 @@ if __name__ == "__main__":
     print("Starting cleanup thread...")
     # start_cleanup_thread()
     print("Starting backend...")
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
