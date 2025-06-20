@@ -1,4 +1,4 @@
-import {FineTuneParams} from "../services/api";
+import {FineTuneParams} from "../services/useApi";
 import {Form, InputNumber, Select} from "antd";
 import React from "react";
 
@@ -15,8 +15,9 @@ const FineTuneParamsInput = ({value, onChange}: {value: FineTuneParams, onChange
                 <InputNumber value={value.learning_rate} onChange={e => onChange({...value, learning_rate: e || value.learning_rate})}/>
             </Form.Item>
             <Form.Item label={"Mode"}>
-                <Select value={value.mode}>
+                <Select value={value.mode} onChange={(e) => onChange({...value, mode: e || value.mode})}>
                     <Select.Option value={"changed_complete"}>Changed Complete</Select.Option>
+                    <Select.Option value={"simple"}>Simple</Select.Option>
                 </Select>
             </Form.Item>
         </Form>

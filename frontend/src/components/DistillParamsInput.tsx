@@ -1,4 +1,4 @@
-import {DistillParams} from "../services/api";
+import {DistillParams} from "../services/useApi";
 import {Form, InputNumber} from "antd";
 import React from "react";
 

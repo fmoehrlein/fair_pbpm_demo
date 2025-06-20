@@ -1,7 +1,7 @@
 import {Button, Form, InputNumber} from "antd";
 import MultiValueInput from "./MultiValueInput";
 import React from "react";
-import {TrainParams} from "../services/api";
+import {TrainParams} from "../services/useApi";
 
 const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (params: TrainParams) => void}) => {
     return (
@@ -35,7 +35,7 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                     what={'Numerical attribute'}
                 />
             </Form.Item>
-            <Form.Item label={'Sensitive Attributes'}>
+            {/*<Form.Item label={'Sensitive Attributes'}>
                 <MultiValueInput
                     values={value.sensitive_attributes}
                     onChange={vs => onChange({
@@ -44,7 +44,7 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                     })}
                     what={'Sensitive attribute'}
                 />
-            </Form.Item>
+            </Form.Item>*/}
             <Form.Item label={'Test split'}>
                 <InputNumber
                     value={value.test_split}
