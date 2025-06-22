@@ -6,16 +6,28 @@ import pandas as pd
 import time
 from datetime import datetime, timedelta
 import threading
+import logging
 
 from utils import *
 from cleanup import start_cleanup_thread
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
 @app.before_request
 def log_method_path():
-    print(f"{request.method} {request.path} {request.json}")
+    logger.info(
+        f"{request.method} {request.path}- "
+        f"args: {request.args.to_dict()} - "
+        f"form: {request.form.to_dict()} - "
+        f"files: {list(request.files.keys())}"
+    )
 
 @app.route("/api/hello_world", methods=["POST"])
 def hello_world():
