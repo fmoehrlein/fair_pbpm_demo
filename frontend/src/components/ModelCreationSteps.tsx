@@ -269,9 +269,6 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                         onOk={() => setResultModalOpen(false)}
                                         footer={(<Space direction={"horizontal"}>
                                             Distill new decision tree?
-                                            <Button onClick={revertFineTune} danger type={"default"} loading={working}>
-                                                Revert
-                                            </Button>
                                             <Button onClick={keepNewModel} type={"primary"} loading={working}>
                                                 Confirm
                                             </Button>
@@ -282,7 +279,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                                 fineTuneResults ? [
                                                     {...fineTuneResults.nn_evaluation, model: "Original Neural Network"},
                                                     {...fineTuneResults.nn_modified_evaluation, model: "New Neural Network"},
-                                                    {...fineTuneResults.dt_evaluation, model: "Original Decision Tree"},
+                                                    {...fineTuneResults.dt_evaluation, model: "Decision Tree"},
                                                 ] : undefined
                                             }
                                         />

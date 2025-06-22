@@ -17,7 +17,7 @@ export interface TrainParams {
 export interface FineTuneParams {
     mode: 'changed_complete';
     learning_rate: number;
-    epoch: number;
+    epochs: number;
     batch_size: number;
 }
 

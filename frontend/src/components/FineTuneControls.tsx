@@ -18,7 +18,7 @@ const FineTuneControls = ({onFineTune, working}: Props) => {
     const [modalOpen, setModalOpen] = React.useState(false);
 
     const [fineTuneParams, setFineTuneParams] = React.useState<FineTuneParams>({
-        mode: 'changed_complete', learning_rate: 0.001, epoch: 5, batch_size: 32
+        mode: 'changed_complete', learning_rate: 0.001, epochs: 5, batch_size: 32
     });
 
     return (

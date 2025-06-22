@@ -6,7 +6,7 @@ const FineTuneParamsInput = ({value, onChange}: {value: FineTuneParams, onChange
     return (
         <Form style={{maxWidth: 500, marginLeft: "auto", marginRight: "auto"}}>
             <Form.Item label={"Epochs"}>
-                <InputNumber value={value.epoch} onChange={e => onChange({...value, epoch: e || value.epoch})}/>
+                <InputNumber value={value.epochs} onChange={e => onChange({...value, epochs: e || value.epochs})}/>
             </Form.Item>
             <Form.Item label={"Batch Size"}>
                 <InputNumber value={value.batch_size} onChange={e => onChange({...value, batch_size: e || value.batch_size})}/>
@@ -16,8 +16,8 @@ const FineTuneParamsInput = ({value, onChange}: {value: FineTuneParams, onChange
             </Form.Item>
             <Form.Item label={"Mode"}>
                 <Select value={value.mode} onChange={(e) => onChange({...value, mode: e || value.mode})}>
-                    <Select.Option value={"changed_complete"}>Changed Complete</Select.Option>
-                    <Select.Option value={"simple"}>Simple</Select.Option>
+                    <Select.Option value={"changed_complete"}>Changed Samples</Select.Option>
+                    <Select.Option value={"simple"}>All Samples</Select.Option>
                 </Select>
             </Form.Item>
         </Form>

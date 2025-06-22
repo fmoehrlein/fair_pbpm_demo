@@ -15,7 +15,7 @@ CORS(app)
 
 @app.before_request
 def log_method_path():
-    print(f"{request.method} {request.path}")
+    print(f"{request.method} {request.path} {request.json}")
 
 @app.route("/api/hello_world", methods=["POST"])
 def hello_world():
