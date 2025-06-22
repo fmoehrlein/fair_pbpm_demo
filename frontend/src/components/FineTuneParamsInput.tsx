@@ -16,7 +16,7 @@ const FineTuneParamsInput = ({value, onChange}: {value: FineTuneParams, onChange
             </Form.Item>
             <Form.Item label={"Mode"}>
                 <Select value={value.mode} onChange={(e) => onChange({...value, mode: e || value.mode})}>
-                    <Select.Option value={"changed_complete"}>Changed Samples</Select.Option>
+                    <Select.Option value={"changed_complete"}>Modified Samples</Select.Option>
                     <Select.Option value={"simple"}>All Samples</Select.Option>
                 </Select>
             </Form.Item>

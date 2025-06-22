@@ -30,8 +30,9 @@ def load_csv_to_df(file_name):
     file_path = os.path.join('raw_data', file_name)
     return pd.read_csv(file_path)
 
-def load_xes_to_df(file_name, folder_name, num_cases=None):
-    file_path = os.path.join("data", folder_name, file_name)
+def load_xes_to_df(file_name, folder_name, num_cases=None, file_path=None):
+    if file_path is None:
+        file_path = os.path.join("data", folder_name, file_name)
     df = pm4py.read_xes(file_path)
     df.rename(columns={'case:concept:name': 'case_id', 'concept:name': 'activity'}, inplace=True)
     columns = ['case_id', 'activity'] + [col for col in df.columns if col not in ['case_id', 'activity']]

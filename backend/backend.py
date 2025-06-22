@@ -41,7 +41,7 @@ def load_xes():
     if "file" not in request.files:
         file_path = os.path.join("data", "cancer_screening.xes")
         try:
-            df = load_xes_to_df("event_log.xes", "cs")
+            df = load_xes_to_df("event_log.xes", folder_name, file_path=file_path)
         except FileNotFoundError:
             return jsonify({"error": "File not found for processing"}), 500
         except Exception as e:
