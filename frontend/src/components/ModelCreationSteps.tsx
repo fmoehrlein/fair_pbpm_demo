@@ -72,15 +72,16 @@ const ModelCreationSteps = ({sessionId}: Props) => {
 
     const TREE_VIEW = 6;
     const DISTILL_RESULT_VIEW = 5;
+    const DEFAULT_VIEW = 0;
 
     React.useEffect(() => {
-        const load = async () => {
-            const newTree = await api.fetchTree(sessionId);
-            setTree(newTree);
-            setCurrent(TREE_VIEW);
-        }
-
-        load();
+        // const load = async () => {
+        //     const newTree = await api.fetchTree(sessionId);
+        //     setTree(newTree);
+        //     setCurrent(TREE_VIEW); // TREE_VIEW was 6
+        // }
+        // load();
+        setCurrent(DEFAULT_VIEW);
     }, []);
 
     const next = () => {

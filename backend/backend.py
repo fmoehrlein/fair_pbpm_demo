@@ -38,6 +38,9 @@ def hello_world():
 
 @app.route("/api/load_xes", methods=["POST"])
 def load_xes():
+    if "folder_name" not in request.form:
+        return jsonify({"error": "Missing folder_name in the request"}), 400
+    folder_name = request.form["folder_name"]
     if "file" not in request.files:
         file_path = os.path.join("data", "cancer_screening.xes")
         try:
@@ -53,7 +56,6 @@ def load_xes():
         if file.filename == "":
             return jsonify({"error": "No selected file"}), 400
 
-        folder_name = request.form["folder_name"]
         try:
             save_path = os.path.join("data", folder_name)
             os.makedirs(save_path, exist_ok=True)
