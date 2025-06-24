@@ -1,3 +1,3 @@
-docker-compose down --rmi all --volumes --remove-orphans
+docker-compose down
 docker-compose build
 docker-compose up

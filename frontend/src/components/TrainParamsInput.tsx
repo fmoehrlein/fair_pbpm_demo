@@ -6,6 +6,7 @@ import {TrainParams} from "../services/useApi";
 const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (params: TrainParams) => void}) => {
     return (
         <Form>
+            <h1>Data Parameters</h1>
             <Form.Item label={'Prefix Length'}>
                 <InputNumber
                     value={value.prefix_length}
@@ -57,6 +58,7 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                     step={.05}
                 />
             </Form.Item>
+            <h1>Model Parameters</h1>
             <Form.Item label={'Num epochs'}>
                 <InputNumber
                     value={value.epochs}

@@ -234,6 +234,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
             title: "Distill",
             content: (
                 <div style={{maxWidth: 900, marginTop: 25, marginLeft: "auto", marginRight: "auto"}}>
+                    <h1>Decision Tree Parameters</h1>
                     <DistillParamsInput value={distillParams} onChange={setDistillParams}/>
                     <Button type={"primary"} onClick={() => distill(distillParams)} loading={working}>
                         Distill
@@ -280,7 +281,7 @@ const ModelCreationSteps = ({sessionId}: Props) => {
                                                 fineTuneResults ? [
                                                     {...fineTuneResults.nn_evaluation, model: "Original Neural Network"},
                                                     {...fineTuneResults.nn_modified_evaluation, model: "New Neural Network"},
-                                                    {...fineTuneResults.dt_evaluation, model: "Decision Tree"},
+                                                    {...fineTuneResults.dt_evaluation, model: "Modified Decision Tree"},
                                                 ] : undefined
                                             }
                                         />
