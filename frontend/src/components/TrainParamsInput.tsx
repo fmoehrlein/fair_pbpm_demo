@@ -23,7 +23,7 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                         ...value,
                         cat_attributes: vs
                     })}
-                    what={'Categorical attribute'}
+                    what={'Categorical Attribute'}
                 />
             </Form.Item>
             <Form.Item label={'Numerical Attributes'}>
@@ -33,7 +33,7 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                         ...value,
                         num_attributes: vs
                     })}
-                    what={'Numerical attribute'}
+                    what={'Numerical Attribute'}
                 />
             </Form.Item>
             {/*<Form.Item label={'Sensitive Attributes'}>
@@ -46,7 +46,7 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                     what={'Sensitive attribute'}
                 />
             </Form.Item>*/}
-            <Form.Item label={'Test split'}>
+            <Form.Item label={'Test Ratio'}>
                 <InputNumber
                     value={value.test_split}
                     onChange={e => onChange({
@@ -58,8 +58,8 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                     step={.05}
                 />
             </Form.Item>
-            <h1>Model Parameters</h1>
-            <Form.Item label={'Num epochs'}>
+            <h1>Neural Network Parameters</h1>
+            <Form.Item label={'Epochs'}>
                 <InputNumber
                     value={value.epochs}
                     onChange={e => onChange({
@@ -80,14 +80,14 @@ const TrainParamsInput = ({value, onChange}: {value: TrainParams, onChange: (par
                     min={0}
                 />
             </Form.Item>
-            <Form.Item label={'Hidden layers'}>
+            <Form.Item label={'Hidden Layers'}>
                 <MultiValueInput
                     values={value.hidden_units.map(v => v.toString())}
                     onChange={vs => onChange({
                         ...value,
                         hidden_units: vs.map(v => Number(v) || 1)
                     })}
-                    what={'Hidden layer'}
+                    what={'Hidden Layer'}
                 />
             </Form.Item>
         </Form>
