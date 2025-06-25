@@ -1,9 +1,9 @@
 # Bias Mitigation for Predictive Business Process Monitoring
 
 This tool enables bias mitigation in machine learning models used for predictive business process monitoring, with a focus on next activity prediction. It addresses biases based on sensitive attributes such as gender by leveraging knowledge distillation. The approach captures the decision structure of a neural network in a decision tree, which can be interpreted and manually modified to reduce bias. The neural network is then fine-tuned to align with the modified, less biased decision structure.
+This method is based on the ideas presented in the paper **A Human-In-The-Loop Approach for Improving Fairness in Predictive Business Process Monitoring** from the **BPM 25** conference.
 
-This method is based on the ideas presented in paper **A Human-In-The-Loop Approach for Improving Fairness in Predictive Business Process Monitoring** from the **BPM 25** conference.
-A running instance can be found at https://apps.pm.iisys.de/fair_pbpm.
+A live demo can be accessed at https://apps.pm.iisys.de/fair_pbpm.
 
 ## Get Started
 
