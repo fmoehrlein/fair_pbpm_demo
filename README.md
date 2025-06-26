@@ -4,6 +4,7 @@ This tool enables bias mitigation in machine learning models used for predictive
 This method is based on the ideas presented in the paper **A Human-In-The-Loop Approach for Improving Fairness in Predictive Business Process Monitoring** from the **BPM 25** conference.
 
 A live demo can be accessed at https://apps.pm.iisys.de/fair_pbpm.
+
 A video demonstration can be found at https://drive.google.com/file/d/1FIfNShThyInZSrNh7WEriRrUCZ_O7JII/view?usp=drive_link
 
 ## Get Started
